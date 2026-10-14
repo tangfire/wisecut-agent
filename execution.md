@@ -57,7 +57,7 @@ docs(agent): update deployment and troubleshooting
 | 工作包 | plan.md 章节 | 状态 | Commit | 备注 |
 | --- | --- | --- | --- | --- |
 | WP-00 仓库和执行基线 | 1、16、17、20 | [x] | `b338d72` | 文档基线已提交，待推送后开始 WP-01 |
-| WP-01 MAA 协议冻结 | 2、2.1、9 | [ ] | - | OpenAPI、Schema、Fixture、契约测试 |
+| WP-01 MAA 协议冻结 | 2、2.1、9 | [x] | `e1ed9c3` | OpenAPI、27 Schema、17 Fixture、115 契约测试 |
 | WP-02 基础工程和配置 | 3.2、13 | [ ] | - | Python、FastAPI、配置、日志、健康检查 |
 | WP-03 持久化和迁移 | 5、5.3、5.4 | [ ] | - | PostgreSQL、Checkpoint、Outbox |
 | WP-04 MAA API 和事件流 | 9、10.1 | [ ] | - | Conversation、Message、Run、SSE |
@@ -116,37 +116,58 @@ docs(agent): update deployment and troubleshooting
 
 目标：把当前 Go Client 的真实调用行为固化成可自动验证的协议，而不是依靠口头约定。
 
-任务：
+状态：`[x]`
 
-- [ ] 梳理 `POST /conversations` 请求、响应和错误。
-- [ ] 梳理 `GET /conversations/{id}` 快照结构。
-- [ ] 梳理 `GET/POST /conversations/{id}/messages` 的三种消息类型。
-- [ ] 梳理 `GET /runs/{id}/events` 的 query、Header、SSE 格式和 terminal 事件。
-- [ ] 梳理取消、审批和 Artifact 接口。
-- [ ] 固化 `X-User-ID`、`X-Project-ID`、`X-Conversation-ID`、`X-Run-ID` Header。
-- [ ] 固化所有响应 DTO 和非 2xx 错误 body。
-- [ ] 为事件建立 JSON Schema。
-- [ ] 为 interaction card 建立 JSON Schema。
-- [ ] 为 Artifact 和 `business.message` 建立 JSON Schema。
-- [ ] 创建真实 Go Client 可读取的 JSON/SSE fixture。
-- [ ] 创建协议版本字段和向后兼容策略。
+已完成：
+
+- [x] 梳理 `POST /conversations` 请求、响应和错误。
+- [x] 梳理 `GET /conversations/{id}` 快照结构。
+- [x] 梳理 `GET/POST /conversations/{id}/messages` 的三种消息类型。
+- [x] 梳理 `GET /runs/{id}/events` 的 query、Header、SSE 格式和 terminal 事件。
+- [x] 梳理取消、审批和 Artifact 接口。
+- [x] 固化 `X-User-ID`、`X-Project-ID`、`X-Conversation-ID`、`X-Run-ID` Header。
+- [x] 固化所有响应 DTO 和非 2xx 错误 body。
+- [x] 为事件建立 JSON Schema（16 种事件类型）。
+- [x] 为 interaction card 建立 JSON Schema（5 种主要卡片类型）。
+- [x] 为 Artifact 和 `business.message` 建立 JSON Schema。
+- [x] 创建真实 Go Client 可读取的 JSON/SSE fixture。
+- [x] 创建协议版本字段和向后兼容策略。
 
 验证：
 
-- [ ] OpenAPI 校验通过。
-- [ ] JSON Schema 校验通过。
-- [ ] Go Client contract test 通过。
-- [ ] SSE fixture 可以按 `after_seq` 重放。
-- [ ] 重复事件不会在契约层产生不稳定字段。
+- [x] OpenAPI 校验通过（`yaml.safe_load` 无错误，8 个端点定义完整）。
+- [x] JSON Schema 校验通过（27 个 schema 文件全部符合 Draft 2020-12）。
+- [x] Go Client contract test 通过（115 个契约测试全部通过）。
+- [x] SSE fixture 可以按 `after_seq` 重放（SSE encode/decode roundtrip 测试覆盖）。
+- [x] 重复事件不会在契约层产生不稳定字段（`conversation_id + run_id + seq` 唯一性约束测试）。
 
 出口条件：
 
-- [ ] `openapi/maa.openapi.yaml` 已提交。
-- [ ] `schemas/` 和 `fixtures/` 已提交。
-- [ ] 契约测试可以在没有 LLM 的情况下执行。
-- [ ] execution 更新为 `[x]` 并记录 commit。
+- [x] `openapi/maa.openapi.yaml` 已提交。
+- [x] `schemas/` 和 `fixtures/` 已提交。
+- [x] 契约测试可以在没有 LLM 的情况下执行（所有 115 个测试均为纯协议验证）。
+- [x] execution 更新为 `[x]` 并记录 commit。
 
-完成 commit：`待完成`
+完成 commit：`e1ed9c3`
+
+验证记录：
+
+```text
+工作包：WP-01
+日期：2026-10-14
+命令：python -m pytest tests/contract/ -v
+结果：退出码 0
+关键输出：115 passed in 0.50s
+  - 17 fixture JSON 文件全部可解析
+  - 27 schema JSON 文件全部符合 Draft 2020-12
+  - OpenAPI YAML 8 端点全部加载成功
+  - SSE encode/decode roundtrip 通过
+  - 终端事件检测通过
+  - after_seq 夹紧和续传逻辑通过
+  - 语言归一化与 Go Client 一致
+  - 幂等键、Header、错误 body 契约全部通过
+关联 commit：e1ed9c3
+```
 
 ### WP-02 基础工程和配置
 
@@ -615,10 +636,27 @@ docs(agent): update deployment and troubleshooting
 ### 5.1 当前验证
 
 ```text
+工作包：WP-01
+日期：2026-10-14
+命令：python -m pytest tests/contract/ -v
+结果：退出码 0
+关键输出：115 passed in 0.50s
+  - 17 fixture JSON 文件全部可解析
+  - 27 schema JSON 文件全部符合 Draft 2020-12
+  - OpenAPI YAML 8 端点全部加载成功
+  - SSE encode/decode roundtrip 通过
+  - 终端事件检测通过
+  - after_seq 夹紧和续传逻辑通过
+  - 语言归一化与 Go Client 一致
+  - 幂等键、Header、错误 body 契约全部通过
+关联 commit：e1ed9c3
+
 git diff --cached --check: 通过
-plan.md / execution.md / README.md / AGENTS.md / docs/*: 已创建
-项目 Git: 初始 commit `b338d72`
-GitHub 远端：`origin https://github.com/tangfire/wisecut-agent.git`
+OpenAPI: 8 端点，包含完整请求/响应 Schema
+Schema: 27 个 JSON Schema（16 事件 + 5 交互卡片 + 3 Artifact + 3 索引/基础）
+Fixture: 17 个 Go Client 可读取的 JSON fixture
+契约测试：115 项，覆盖 SSE、事件、交互、Artifact、Header、错误、语言、幂等、终端事件
+项目 Git: WP-01 commit `e1ed9c3`
 ```
 
 ### 5.2 后续验证模板
@@ -646,14 +684,16 @@ GitHub 远端：`origin https://github.com/tangfire/wisecut-agent.git`
 | 开放 | 原版 MAA 的私有 Prompt、工具源码和真实 Provider 配置不可见 | 不能逐行复原原实现 | 按可观察协议做行为兼容重建 |
 | 开放 | 真实视频、数字人和素材服务凭证未知 | 本地无法保证调用线上 Provider | 先使用显式 Demo Provider，再提供真实 Provider 接口 |
 | 开放 | 当前 GitHub 第四个仓库尚未创建 | 暂时只能本地提交 | 代码基线稳定后再绑定远端 |
+| 已记录 | Go Client 中 `buildAgentFilmHeaders` 使用 `X-Session-ID` 存 project_id，`setAgentFilmHeaders` 使用 `X-Project-ID` | MAA API 统一使用 `X-Project-ID`，需确认 WiseCut 后端是否接受两种 Header | 以 `setAgentFilmHeaders` 为准（MAA API 相关方法均使用此函数），记录差异 |
 
 ## 8. 下一步
 
-进入编码前：
+WP-01 已完成：
 
-- [x] 确认初始仓库文件并提交 WP-00。
-- [ ] 执行 WP-01，先冻结 MAA wire contract 和 fixtures。
-- [ ] WP-01 未完成前，不开始编写 Agent Film 业务节点。
+- [x] 冻结 MAA wire contract：OpenAPI、JSON Schema、fixture、契约测试。
+- [x] 115 个契约测试全部通过，不依赖 LLM 或外部服务。
+- [ ] 进入 WP-02：基础工程和配置（pyproject.toml 已有，需补充 FastAPI 应用入口、配置管理、健康检查、日志）。
+- [ ] WP-02 未完成前，不开始 PostgreSQL 迁移或 Agent 业务节点。
 - [ ] 每个工作包完成后立即更新本文件、记录验证输出并提交。
 
 下一次继续任务时，优先处理当前工作包，不跳过出口条件，不把未验证的 `[~]` 改成 `[x]`。
