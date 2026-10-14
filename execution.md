@@ -1210,7 +1210,7 @@ docs(agent): update deployment and troubleshooting
 | 日期 | 工作包 | Commit | 主要变更 | 验证结果 |
 | --- | --- | --- | --- | --- |
 | 2026-10-14 | WP-00 | `b338d72` | 创建并提交项目基线、最终计划、执行同步和智能体交接文档 | `git diff --check` 通过；GitHub 推送进行中 |
-| 2026-10-14 | REBASELINE | 待提交 | 独立 Agent Film 产品重基线；纠正 WP-02 至 WP-10 完成状态；重排 WP-11 至 WP-18 | `pytest: 331 passed`；`mypy: 187 errors`；ruff 未安装；运行链审计发现 stub/no-op |
+| 2026-10-14 | REBASELINE | `af9953a` | 独立 Agent Film 产品重基线；纠正 WP-02 至 WP-10 完成状态；重排 WP-11 至 WP-18 | `pytest: 331 passed`；`mypy: 187 errors`；ruff 未安装；运行链审计发现 stub/no-op |
 
 ## 5. 验证记录
 
@@ -1318,7 +1318,7 @@ Fixture: 17 个 Go Client 可读取的 JSON fixture
 | 开放 | 真实视频、数字人和素材服务凭证未知 | 本地无法保证调用线上 Provider | 先使用显式 Demo Provider，再提供真实 Provider 接口 |
 | 已解决 | GitHub 仓库已创建并绑定 `origin` | 无 | 远端为 `git@github.com:tangfire/wisecut-agent.git` |
 | 已记录 | Go Client 中 `buildAgentFilmHeaders` 使用 `X-Session-ID` 存 project_id，`setAgentFilmHeaders` 使用 `X-Project-ID` | MAA API 统一使用 `X-Project-ID`，需确认 WiseCut 后端是否接受两种 Header | 以 `setAgentFilmHeaders` 为准（MAA API 相关方法均使用此函数），记录差异 |
-| 开放 | 本地分支比 `origin/main` 超前 10 个 commit | 其他环境从 GitHub 获取不到 WP-05 至 WP-10 | 重基线 commit 完成后由用户决定并执行 push |
+| 开放 | 本地分支包含尚未推送到 `origin/main` 的实现和重基线 commit | 其他环境从 GitHub 获取不到最新代码和计划 | 由用户决定何时执行 push；同一本地目录继续开发不受影响 |
 | 开放 | 尚未确定真实视频生成 API 供应商和测试凭证 | WP-14 无法完成真实视频验收 | 先完成供应商无关 contract，再由用户提供沙箱/测试配置 |
 | 开放 | 现有 331 测试未覆盖真实 Worker/Graph/Provider 链 | 绿色测试可能掩盖运行时不可用 | WP-11 新增真实依赖和闭环测试 |
 
