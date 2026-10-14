@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wisecut-agent/schemas/events/interaction-updated.json",
+  "title": "interaction.updated",
+  "description": "Emitted when an interaction state changes (e.g., auto-approve toggle).",
+  "type": "object",
+  "required": ["seq", "type", "payload"],
+  "properties": {
+    "seq": { "type": "integer", "minimum": 0 },
+    "type": { "type": "string", "const": "interaction.updated" },
+    "payload": {
+      "type": "object",
+      "required": ["interaction_id", "run_id"],
+      "properties": {
+        "interaction_id": { "type": "string" },
+        "run_id": { "type": "string" },
+        "status": { "type": "string" },
+        "auto_approve_version": { "type": "integer" }
+      }
+    }
+  }
+}

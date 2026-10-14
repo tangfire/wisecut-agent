@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wisecut-agent/schemas/events/interaction-requested.json",
+  "title": "interaction.requested",
+  "description": "Emitted when the graph needs user input. Contains the frontend_interaction card data.",
+  "type": "object",
+  "required": ["seq", "type", "payload"],
+  "properties": {
+    "seq": { "type": "integer", "minimum": 0 },
+    "type": { "type": "string", "const": "interaction.requested" },
+    "payload": {
+      "type": "object",
+      "required": ["interaction_id", "run_id", "frontend_interaction"],
+      "properties": {
+        "interaction_id": { "type": "string" },
+        "run_id": { "type": "string" },
+        "intent": {
+          "type": "string",
+          "description": "Interaction intent (e.g., confirm_extracted_product_context, review_storyboard_script)."
+        },
+        "frontend_interaction": {
+          "type": "object",
+          "required": ["intent", "status"],
+          "description": "Structured card data for the frontend renderer.",
+          "properties": {
+            "intent": { "type": "string" },
+            "status": {
+              "type": "string",
+              "enum": ["pending", "answered", "cancelled"]
+            },
+            "cards": {
+              "type": "array",
+              "description": "Card components for component_cards intent.",
+              "items": { "type": "object" }
+            },
+            "options": {
+              "type": "array",
+              "description": "Selectable options for choice-type interactions.",
+              "items": { "type": "object" }
+            },
+            "value": {
+              "type": "object",
+              "description": "Current form values."
+            },
+            "message": { "type": "string" },
+            "actions": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

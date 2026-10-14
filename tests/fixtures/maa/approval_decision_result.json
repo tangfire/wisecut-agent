@@ -1,0 +1,21 @@
+{
+  "_comment": "Response body for POST /approvals/{approval_id}/decide",
+  "approval": {
+    "approval_id": "approval-test-001",
+    "status": "approved",
+    "decided_by": "user-1001",
+    "resolved_at": "2026-10-14T06:00:05Z"
+  },
+  "event": {
+    "id": "evt-006",
+    "conversation_id": "conv-test-001",
+    "run_id": "run-test-001",
+    "seq": 6,
+    "type": "approval.resolved",
+    "payload": {
+      "approval_id": "approval-test-001",
+      "decision": "approve"
+    }
+  },
+  "should_resume_runner": true
+}

@@ -1,0 +1,22 @@
+{
+  "_comment": "SSE event: business.message with final_video",
+  "id": "evt-010",
+  "event": "business.message",
+  "data": {
+    "seq": 10,
+    "payload": {
+      "message": {
+        "business_key": "final_video",
+        "status": "completed",
+        "payload": {
+          "video_url": "https://storage.example.com/videos/run-test-001/final.mp4",
+          "cover_url": "https://storage.example.com/videos/run-test-001/cover.jpg",
+          "duration": "60",
+          "aspect_ratio": "9:16",
+          "title": "无线降噪耳机营销视频",
+          "render_job_id": "render-job-001"
+        }
+      }
+    }
+  }
+}

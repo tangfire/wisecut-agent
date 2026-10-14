@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wisecut-agent/schemas/interactions/review-storyboard-script.json",
+  "title": "review_storyboard_script",
+  "description": "Interaction card for reviewing and selecting a storyboard/script version.",
+  "type": "object",
+  "required": ["intent", "status", "frontend_interaction"],
+  "properties": {
+    "intent": { "type": "string", "const": "review_storyboard_script" },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "answered", "cancelled"]
+    },
+    "frontend_interaction": {
+      "type": "object",
+      "required": ["intent", "status", "options"],
+      "properties": {
+        "intent": { "type": "string", "const": "review_storyboard_script" },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "answered", "cancelled"]
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "option_id": { "type": "string" },
+              "title": { "type": "string" },
+              "description": { "type": "string" },
+              "script_content": { "type": "string" },
+              "storyboard_scenes": { "type": "array", "items": { "type": "object" } },
+              "selected": { "type": "boolean" }
+            }
+          }
+        },
+        "message": { "type": "string" },
+        "actions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "cards": { "type": "array", "items": { "type": "object" } },
+        "value": {},
+        "product_name": { "type": "string" }
+      }
+    }
+  }
+}

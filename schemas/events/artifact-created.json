@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wisecut-agent/schemas/events/artifact-created.json",
+  "title": "artifact.created",
+  "description": "Emitted when a new artifact is produced.",
+  "type": "object",
+  "required": ["seq", "type", "payload"],
+  "properties": {
+    "seq": { "type": "integer", "minimum": 0 },
+    "type": { "type": "string", "const": "artifact.created" },
+    "payload": {
+      "type": "object",
+      "required": ["artifact_id", "run_id", "artifact_type"],
+      "properties": {
+        "artifact_id": { "type": "string" },
+        "run_id": { "type": "string" },
+        "artifact_type": { "type": "string" },
+        "uri": { "type": "string", "format": "uri" },
+        "mime_type": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "ready", "expired"] }
+      }
+    }
+  }
+}

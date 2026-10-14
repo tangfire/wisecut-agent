@@ -1,0 +1,24 @@
+{
+  "_comment": "Response body for interaction_response (AgentFilmInteractionResult)",
+  "conversation_id": "conv-test-001",
+  "run_id": "run-test-001",
+  "accepted_as_inbox": true,
+  "events_url": "/runs/run-test-001/events",
+  "event": {
+    "id": "event-5",
+    "conversation_id": "conv-test-001",
+    "run_id": "run-test-001",
+    "seq": 5,
+    "type": "interaction.resolved",
+    "payload": {
+      "interaction_id": "interaction-test-001",
+      "action": "approve",
+      "status": "answered"
+    }
+  },
+  "interaction": {
+    "interaction_id": "interaction-test-001",
+    "status": "answered",
+    "intent": "confirm_extracted_product_context"
+  }
+}

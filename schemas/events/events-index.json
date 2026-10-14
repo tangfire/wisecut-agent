@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wisecut-agent/schemas/events/events-index.json",
+  "title": "MAA Event Types Index",
+  "description": "Index of all recognized MAA event types and their schema files.",
+  "type": "object",
+  "properties": {
+    "event_types": {
+      "type": "object",
+      "properties": {
+        "run.started":            { "$ref": "run-started.json" },
+        "run.phase_changed":      { "$ref": "run-phase-changed.json" },
+        "agent.progress":         { "$ref": "agent-progress.json" },
+        "assistant.delta":        { "$ref": "assistant-delta.json" },
+        "assistant.message":      { "$ref": "assistant-message.json" },
+        "tool.started":           { "$ref": "tool-started.json" },
+        "tool.completed":         { "$ref": "tool-completed.json" },
+        "tool.failed":            { "$ref": "tool-failed.json" },
+        "approval.required":      { "$ref": "approval-required.json" },
+        "approval.resolved":      { "$ref": "approval-resolved.json" },
+        "interaction.requested":  { "$ref": "interaction-requested.json" },
+        "interaction.updated":    { "$ref": "interaction-updated.json" },
+        "interaction.resolved":   { "$ref": "interaction-resolved.json" },
+        "artifact.created":       { "$ref": "artifact-created.json" },
+        "business.message":       { "$ref": "business-message.json" },
+        "run.completed":          { "$ref": "run-terminal.json" },
+        "run.failed":             { "$ref": "run-terminal.json" },
+        "run.cancelled":          { "$ref": "run-terminal.json" }
+      }
+    },
+    "terminal_event_types": {
+      "type": "array",
+      "items": { "type": "string" },
+      "const": ["run.completed", "run.failed", "run.cancelled"]
+    },
+    "sse_header_contract": {
+      "type": "object",
+      "properties": {
+        "id_field":   { "type": "string", "const": "id" },
+        "event_field": { "type": "string", "const": "event" },
+        "data_field":  { "type": "string", "const": "data" },
+        "heartbeat":   { "type": "string", "const": ":heartbeat" },
+        "seq_field_in_data": {
+          "type": "string",
+          "enum": ["seq", "sequence"],
+          "description": "Go Client tries seq, then sequence, then the SSE id as fallback."
+        }
+      }
+    }
+  }
+}

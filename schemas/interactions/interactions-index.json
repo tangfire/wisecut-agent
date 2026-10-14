@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wisecut-agent/schemas/interactions/interactions-index.json",
+  "title": "Interaction Card Types Index",
+  "description": "Index of all recognized frontend interaction card types and their schema file names.",
+  "type": "object",
+  "properties": {
+    "card_types": {
+      "type": "object",
+      "properties": {
+        "confirm_extracted_product_context": {
+          "$ref": "confirm-extracted-product-context.json"
+        },
+        "review_storyboard_script": {
+          "$ref": "review-storyboard-script.json"
+        },
+        "confirm_generation_start": {
+          "$ref": "confirm-generation-start.json"
+        },
+        "component_cards": { "$ref": "component-cards.json" },
+        "reveal_card":          { "$ref": "interaction-card-base.json" },
+        "collect_fields":       { "$ref": "interaction-card-base.json" },
+        "user_input":           { "$ref": "interaction-card-base.json" },
+        "select_video_style":   { "$ref": "interaction-card-base.json" },
+        "collect_selling_points": { "$ref": "interaction-card-base.json" },
+        "upload_product_main_image": { "$ref": "interaction-card-base.json" },
+        "collect_promotion_price":    { "$ref": "interaction-card-base.json" },
+        "collect_promotion_time":     { "$ref": "interaction-card-base.json" },
+        "collect_product_name":       { "$ref": "interaction-card-base.json" },
+        "select_promotion_event":     { "$ref": "interaction-card-base.json" },
+        "upload_supporting_materials": { "$ref": "interaction-card-base.json" },
+        "video_script_select":        { "$ref": "interaction-card-base.json" },
+        "select_digital_human_mode":  { "$ref": "interaction-card-base.json" },
+        "text_card":                  { "$ref": "interaction-card-base.json" },
+        "exception":                  { "$ref": "interaction-card-base.json" }
+      }
+    }
+  }
+}

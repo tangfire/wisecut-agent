@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wisecut-agent/schemas/events/assistant-message.json",
+  "title": "assistant.message",
+  "description": "Complete assistant message (emitted after all deltas).",
+  "type": "object",
+  "required": ["seq", "type", "payload"],
+  "properties": {
+    "seq": { "type": "integer", "minimum": 0 },
+    "type": { "type": "string", "const": "assistant.message" },
+    "payload": {
+      "type": "object",
+      "required": ["message_id", "content"],
+      "properties": {
+        "message_id": { "type": "string" },
+        "content": { "type": "string" },
+        "role": { "type": "string", "const": "assistant" }
+      }
+    }
+  }
+}

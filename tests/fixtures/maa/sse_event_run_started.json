@@ -1,0 +1,15 @@
+{
+  "_comment": "SSE event: run.started — first event in a run's event stream",
+  "id": "evt-001",
+  "event": "run.started",
+  "data": {
+    "seq": 1,
+    "payload": {
+      "run_id": "run-test-001",
+      "conversation_id": "conv-test-001",
+      "status": "running",
+      "phase": "starting",
+      "started_at": "2026-10-14T06:00:00Z"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wisecut-agent/schemas/events/run-phase-changed.json",
+  "title": "run.phase_changed",
+  "description": "Emitted when the graph transitions to a new phase.",
+  "type": "object",
+  "required": ["seq", "type", "payload"],
+  "properties": {
+    "seq": { "type": "integer", "minimum": 0 },
+    "type": { "type": "string", "const": "run.phase_changed" },
+    "payload": {
+      "type": "object",
+      "required": ["run_id", "phase"],
+      "properties": {
+        "run_id": { "type": "string" },
+        "phase": { "type": "string" },
+        "prev_phase": { "type": "string" },
+        "started_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

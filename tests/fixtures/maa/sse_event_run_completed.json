@@ -1,0 +1,13 @@
+{
+  "_comment": "SSE terminal event: run.completed",
+  "id": "evt-011",
+  "event": "run.completed",
+  "data": {
+    "seq": 11,
+    "payload": {
+      "run_id": "run-test-001",
+      "status": "completed",
+      "finished_at": "2026-10-14T06:05:00Z"
+    }
+  }
+}

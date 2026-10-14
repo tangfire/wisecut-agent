@@ -1,0 +1,24 @@
+{
+  "_comment": "Response body for GET /conversations/{id}",
+  "conversation": {
+    "id": "conv-test-001",
+    "status": "active",
+    "metadata": {
+      "source": "wisecut-agent-film",
+      "user_id": "1001",
+      "project_id": "2001",
+      "mode": "quick",
+      "agent_profile_id": "one-click-quick",
+      "response_language": "zh-CN"
+    }
+  },
+  "active_run": {
+    "id": "run-test-001",
+    "status": "running",
+    "phase": "collect_product_context",
+    "error": ""
+  },
+  "messages": [],
+  "interactions": [],
+  "recent_events": []
+}

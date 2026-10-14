@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wisecut-agent/schemas/events/event-envelope.json",
+  "title": "MAA Event Envelope",
+  "description": "Top-level envelope for all MAA events. The `payload` schema varies by event type.",
+  "type": "object",
+  "required": ["seq", "type", "payload"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Stable event identifier. Used as the SSE `id:` field."
+    },
+    "seq": {
+      "type": "integer",
+      "description": "Monotonically increasing sequence number within the run. Must be >= 0.",
+      "minimum": 0
+    },
+    "type": {
+      "type": "string",
+      "description": "Event type discriminator."
+    },
+    "payload": {
+      "type": "object",
+      "description": "Event payload. Structure varies by type.",
+      "additionalProperties": true
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wisecut-agent/schemas/events/tool-failed.json",
+  "title": "tool.failed",
+  "description": "Emitted when a tool execution fails after all retries.",
+  "type": "object",
+  "required": ["seq", "type", "payload"],
+  "properties": {
+    "seq": { "type": "integer", "minimum": 0 },
+    "type": { "type": "string", "const": "tool.failed" },
+    "payload": {
+      "type": "object",
+      "required": ["tool_name", "run_id", "error"],
+      "properties": {
+        "tool_name": { "type": "string" },
+        "run_id": { "type": "string" },
+        "tool_execution_id": { "type": "string" },
+        "error": { "type": "string" },
+        "error_code": { "type": "string" },
+        "attempt": { "type": "integer", "minimum": 1 },
+        "finished_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

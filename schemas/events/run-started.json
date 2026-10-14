@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wisecut-agent/schemas/events/run-started.json",
+  "title": "run.started",
+  "description": "Emitted when a run begins execution.",
+  "type": "object",
+  "required": ["seq", "type", "payload"],
+  "properties": {
+    "seq": { "type": "integer", "minimum": 0 },
+    "type": { "type": "string", "const": "run.started" },
+    "payload": {
+      "type": "object",
+      "required": ["run_id", "conversation_id", "status"],
+      "properties": {
+        "run_id": { "type": "string" },
+        "conversation_id": { "type": "string" },
+        "status": { "type": "string", "const": "running" },
+        "phase": {
+          "type": "string",
+          "description": "Initial graph phase.",
+          "enum": ["starting", "collect_product_context", "generate_strategy", "generate_script", "review_script", "prepare_generation", "collect_materials", "match_digital_human", "render_video", "validate_delivery", "publishing"]
+        },
+        "started_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

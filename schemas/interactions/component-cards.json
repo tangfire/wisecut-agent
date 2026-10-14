@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wisecut-agent/schemas/interactions/component-cards.json",
+  "title": "component_cards",
+  "description": "Composite interaction card containing multiple sub-cards rendered together.",
+  "type": "object",
+  "required": ["intent", "status", "frontend_interaction"],
+  "properties": {
+    "intent": { "type": "string", "const": "component_cards" },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "answered", "cancelled"]
+    },
+    "frontend_interaction": {
+      "type": "object",
+      "required": ["intent", "status", "cards"],
+      "properties": {
+        "intent": { "type": "string", "const": "component_cards" },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "answered", "cancelled"]
+        },
+        "cards": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["intent"],
+            "properties": {
+              "intent": { "type": "string" },
+              "formData": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "key": { "type": "string" },
+                    "value": {},
+                    "controlType": { "type": "string" },
+                    "options": { "type": "array" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "options": { "type": "array", "items": { "type": "object" } },
+        "value": {},
+        "message": { "type": "string" },
+        "actions": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

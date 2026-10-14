@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wisecut-agent/schemas/events/tool-completed.json",
+  "title": "tool.completed",
+  "description": "Emitted when a tool execution completes successfully.",
+  "type": "object",
+  "required": ["seq", "type", "payload"],
+  "properties": {
+    "seq": { "type": "integer", "minimum": 0 },
+    "type": { "type": "string", "const": "tool.completed" },
+    "payload": {
+      "type": "object",
+      "required": ["tool_name", "run_id", "output"],
+      "properties": {
+        "tool_name": { "type": "string" },
+        "run_id": { "type": "string" },
+        "tool_execution_id": { "type": "string" },
+        "output": { "type": "object" },
+        "duration_ms": { "type": "integer", "minimum": 0 },
+        "finished_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

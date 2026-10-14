@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wisecut-agent/schemas/events/approval-resolved.json",
+  "title": "approval.resolved",
+  "description": "Emitted when an approval decision is recorded.",
+  "type": "object",
+  "required": ["seq", "type", "payload"],
+  "properties": {
+    "seq": { "type": "integer", "minimum": 0 },
+    "type": { "type": "string", "const": "approval.resolved" },
+    "payload": {
+      "type": "object",
+      "required": ["approval_id", "run_id", "decision"],
+      "properties": {
+        "approval_id": { "type": "string" },
+        "run_id": { "type": "string" },
+        "decision": {
+          "type": "string",
+          "enum": ["approve", "deny"]
+        },
+        "decided_by": { "type": "string" },
+        "resolved_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

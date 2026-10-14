@@ -1,0 +1,14 @@
+{
+  "_comment": "SSE event: tool.started",
+  "id": "evt-002",
+  "event": "tool.started",
+  "data": {
+    "seq": 2,
+    "payload": {
+      "tool_name": "extract_product_facts",
+      "run_id": "run-test-001",
+      "tool_execution_id": "tool-exec-001",
+      "started_at": "2026-10-14T06:00:01Z"
+    }
+  }
+}

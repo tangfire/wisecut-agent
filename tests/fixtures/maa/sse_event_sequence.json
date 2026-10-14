@@ -1,0 +1,48 @@
+{
+  "_comment": "Full event stream sequence for a complete Quick mode run",
+  "description": "This sequence represents the events the Go Client expects to receive from the SSE endpoint",
+  "events": [
+    { "$ref": "sse_event_run_started.json" },
+    { "$ref": "sse_event_tool_started.json" },
+    { "$ref": "sse_event_tool_completed.json" },
+    { "$ref": "sse_event_interaction_requested.json" },
+    {
+      "_comment": "User submits interaction, graph resumes",
+      "id": "evt-005",
+      "event": "interaction.resolved",
+      "data": {
+        "seq": 5,
+        "payload": {
+          "interaction_id": "interaction-test-001",
+          "run_id": "run-test-001",
+          "action": "approve",
+          "status": "answered"
+        }
+      }
+    },
+    {
+      "id": "evt-006",
+      "event": "run.phase_changed",
+      "data": {
+        "seq": 6,
+        "payload": {
+          "run_id": "run-test-001",
+          "phase": "generate_script"
+        }
+      }
+    },
+    {
+      "id": "evt-007",
+      "event": "agent.progress",
+      "data": {
+        "seq": 7,
+        "payload": {
+          "progress": 50,
+          "message": "正在生成脚本"
+        }
+      }
+    },
+    { "$ref": "sse_event_business_message_final_video.json" },
+    { "$ref": "sse_event_run_completed.json" }
+  ]
+}

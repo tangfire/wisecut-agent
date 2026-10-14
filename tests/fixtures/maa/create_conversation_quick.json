@@ -1,0 +1,14 @@
+{
+  "_comment": "Request body for POST /conversations (Quick mode)",
+  "title": "商品视频需求",
+  "agent_profile_id": "one-click-quick",
+  "metadata": {
+    "source": "wisecut-agent-film",
+    "local_run_id": "run-test-001",
+    "user_id": 1001,
+    "project_id": 2001,
+    "mode": "quick",
+    "agent_profile_id": "one-click-quick",
+    "response_language": "zh-CN"
+  }
+}

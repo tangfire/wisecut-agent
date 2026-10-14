@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wisecut-agent/schemas/events/run-terminal.json",
+  "title": "run.completed / run.failed / run.cancelled",
+  "description": "Terminal events that close the SSE stream.",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["seq", "type", "payload"],
+      "properties": {
+        "seq": { "type": "integer", "minimum": 0 },
+        "type": { "type": "string", "const": "run.completed" },
+        "payload": {
+          "type": "object",
+          "required": ["status", "run_id"],
+          "properties": {
+            "status": { "type": "string", "const": "completed" },
+            "run_id": { "type": "string" },
+            "finished_at": { "type": "string", "format": "date-time" }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": ["seq", "type", "payload"],
+      "properties": {
+        "seq": { "type": "integer", "minimum": 0 },
+        "type": { "type": "string", "const": "run.failed" },
+        "payload": {
+          "type": "object",
+          "required": ["status", "run_id", "error"],
+          "properties": {
+            "status": { "type": "string", "const": "failed" },
+            "run_id": { "type": "string" },
+            "error": { "type": "string" },
+            "error_code": { "type": "string" },
+            "finished_at": { "type": "string", "format": "date-time" }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": ["seq", "type", "payload"],
+      "properties": {
+        "seq": { "type": "integer", "minimum": 0 },
+        "type": { "type": "string", "const": "run.cancelled" },
+        "payload": {
+          "type": "object",
+          "required": ["status", "run_id"],
+          "properties": {
+            "status": { "type": "string", "const": "cancelled" },
+            "run_id": { "type": "string" },
+            "finished_at": { "type": "string", "format": "date-time" }
+          }
+        }
+      }
+    }
+  ]
+}

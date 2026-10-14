@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wisecut-agent/schemas/interactions/confirm-generation-start.json",
+  "title": "confirm_generation_start",
+  "description": "Interaction card for confirming generation before starting rendering.",
+  "type": "object",
+  "required": ["intent", "status", "frontend_interaction"],
+  "properties": {
+    "intent": { "type": "string", "const": "confirm_generation_start" },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "answered", "cancelled"]
+    },
+    "frontend_interaction": {
+      "type": "object",
+      "required": ["intent", "status"],
+      "properties": {
+        "intent": { "type": "string", "const": "confirm_generation_start" },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "answered", "cancelled"]
+        },
+        "cost_breakdown": {
+          "type": "object",
+          "properties": {
+            "estimated_cost": { "type": "number" },
+            "currency": { "type": "string" },
+            "duration_seconds": { "type": "integer" },
+            "aspect_ratio": { "type": "string" },
+            "digital_human": { "type": "string" },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "cost": { "type": "number" }
+                }
+              }
+            }
+          }
+        },
+        "actions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "cards": { "type": "array", "items": { "type": "object" } },
+        "options": { "type": "array", "items": { "type": "object" } },
+        "value": {},
+        "message": { "type": "string" }
+      }
+    }
+  }
+}

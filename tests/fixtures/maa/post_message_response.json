@@ -1,0 +1,7 @@
+{
+  "_comment": "Response body for POST /conversations/{id}/messages (PostMessageResponse)",
+  "conversation_id": "conv-test-001",
+  "run_id": "run-test-001",
+  "accepted_as_inbox": true,
+  "events_url": "/runs/run-test-001/events"
+}

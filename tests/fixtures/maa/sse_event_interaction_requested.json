@@ -1,0 +1,23 @@
+{
+  "_comment": "SSE event: interaction.requested with confirm_extracted_product_context card",
+  "id": "evt-004",
+  "event": "interaction.requested",
+  "data": {
+    "seq": 4,
+    "payload": {
+      "interaction_id": "interaction-test-001",
+      "run_id": "run-test-001",
+      "intent": "confirm_extracted_product_context",
+      "frontend_interaction": {
+        "intent": "confirm_extracted_product_context",
+        "status": "pending",
+        "product_name": "无线降噪耳机",
+        "product_description": "蓝牙5.3，主动降噪，30小时续航",
+        "selling_points": ["主动降噪", "30小时续航", "蓝牙5.3"],
+        "target_audience": ["通勤族", "学生"],
+        "product_type": "数码配件",
+        "actions": ["confirm", "edit"]
+      }
+    }
+  }
+}

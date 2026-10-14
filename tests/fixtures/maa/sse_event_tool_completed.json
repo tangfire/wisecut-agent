@@ -1,0 +1,20 @@
+{
+  "_comment": "SSE event: tool.completed",
+  "id": "evt-003",
+  "event": "tool.completed",
+  "data": {
+    "seq": 3,
+    "payload": {
+      "tool_name": "extract_product_facts",
+      "run_id": "run-test-001",
+      "tool_execution_id": "tool-exec-001",
+      "output": {
+        "product_name": "无线降噪耳机",
+        "selling_points": ["主动降噪", "30小时续航"],
+        "target_audience": ["通勤族", "学生"]
+      },
+      "duration_ms": 2500,
+      "finished_at": "2026-10-14T06:00:03Z"
+    }
+  }
+}

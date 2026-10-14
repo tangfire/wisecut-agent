@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wisecut-agent/schemas/events/tool-started.json",
+  "title": "tool.started",
+  "description": "Emitted when a tool execution begins.",
+  "type": "object",
+  "required": ["seq", "type", "payload"],
+  "properties": {
+    "seq": { "type": "integer", "minimum": 0 },
+    "type": { "type": "string", "const": "tool.started" },
+    "payload": {
+      "type": "object",
+      "required": ["tool_name", "run_id"],
+      "properties": {
+        "tool_name": { "type": "string" },
+        "run_id": { "type": "string" },
+        "tool_execution_id": { "type": "string" },
+        "input": { "type": "object" },
+        "started_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

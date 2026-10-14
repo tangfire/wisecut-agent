@@ -1,0 +1,837 @@
+openapi: 3.0.4
+info:
+  title: WiseCut MAA Agent API
+  description: |
+    MAA (Multi-Agent Agent) wire contract for WiseCut Agent Film.
+    Compatible with the Go MAA Client at `internal/third_party/maa/agent/`.
+
+    Protocol version: 1.0.0
+    Backward-compatible changes will increment the minor version;
+    breaking changes will increment the major version and add a new path prefix.
+  version: 1.0.0
+  contact:
+    name: WiseCut Agent Team
+
+servers:
+  - url: http://localhost:10728
+    description: Local development
+
+security:
+  - XUserID: []
+  - XProjectID: []
+
+securitySchemes:
+  XUserID:
+    type: apiKey
+    in: header
+    name: X-User-ID
+    description: User ID as a header. Required for mutating requests.
+  XProjectID:
+    type: apiKey
+    in: header
+    name: X-Project-ID
+    description: Project ID as a header. Required for mutating requests.
+
+headers:
+  XConversationID:
+    name: X-Conversation-ID
+    in: header
+    schema:
+      type: string
+    description: Conversation ID. Sent on mutating requests.
+  XRunID:
+    name: X-Run-ID
+    in: header
+    schema:
+      type: string
+    description: Run ID. Sent on mutating requests.
+  ContentType:
+    name: Content-Type
+    in: header
+    schema:
+      type: string
+      default: application/json
+    description: Must be application/json for JSON requests.
+  Accept:
+    name: Accept
+    in: header
+    schema:
+      type: string
+      enum: [application/json, text/event-stream]
+    description: application/json for REST, text/event-stream for SSE.
+
+paths:
+  /conversations:
+    post:
+      operationId: createConversation
+      summary: Create a new conversation
+      description: |
+        Creates a new MAA conversation and returns the conversation_id and langgraph_thread_id.
+
+        Go Client callsite: `createConversation` in client.go.
+
+        The `metadata` object stores business context. Keys `user_id`, `project_id`,
+        `mode`, `agent_profile_id`, and `response_language` are recognized by the client
+        and must not be duplicated at the request body top level.
+      tags:
+        - Conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConversationRequest'
+            examples:
+              quickMode:
+                $ref: '#/components/examples/CreateConversationRequest.quick'
+              deepMode:
+                $ref: '#/components/examples/CreateConversationRequest.deep'
+      responses:
+        '201':
+          description: Conversation created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateConversationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /conversations/{conversation_id}:
+    get:
+      operationId: getConversation
+      summary: Get conversation detail snapshot
+      description: |
+        Returns the conversation, its active run (if any), recent messages,
+        pending interactions, and recent events.
+      tags:
+        - Conversation
+      parameters:
+        - $ref: '#/components/parameters/ConversationID'
+      responses:
+        '200':
+          description: Conversation detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /conversations/{conversation_id}/messages:
+    get:
+      operationId: listMessages
+      summary: List conversation messages
+      description: |
+        Returns all messages in the conversation, ordered by creation time.
+      tags:
+        - Message
+      parameters:
+        - $ref: '#/components/parameters/ConversationID'
+      responses:
+        '200':
+          description: Message list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      operationId: postMessage
+      summary: Post a message, guidance, or interaction response
+      description: |
+        Accepts three message types:
+        - `message`: normal user or agent message
+        - `guidance`: user guidance during an active run
+        - `interaction_response`: answer to a frontend interaction card
+
+        Go Client callsites: `SendMessage`, `SubmitInteraction` in client.go.
+      tags:
+        - Message
+      parameters:
+        - $ref: '#/components/parameters/ConversationID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/MessageRequest'
+                - $ref: '#/components/schemas/InteractionResponseRequest'
+            discriminator:
+              propertyName: type
+              mapping:
+                message: '#/components/schemas/MessageRequest'
+                guidance: '#/components/schemas/MessageRequest'
+                interaction_response: '#/components/schemas/InteractionResponseRequest'
+      responses:
+        '200':
+          description: Message accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostMessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /conversations/{conversation_id}/artifacts/{artifact_id}:
+    get:
+      operationId: getArtifact
+      summary: Get artifact detail
+      description: |
+        Returns the full artifact data including payload.
+      tags:
+        - Artifact
+      parameters:
+        - $ref: '#/components/parameters/ConversationID'
+        - name: artifact_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Artifact ID
+      responses:
+        '200':
+          description: Artifact detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtifactDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /runs/{run_id}/events:
+    get:
+      operationId: streamEvents
+      summary: Subscribe to run events via SSE
+      description: |
+        Returns a text/event-stream of events for the given run.
+
+        The client MUST send `Accept: text/event-stream`.
+
+        Query parameters:
+        - `after_seq`: resume from this sequence number (0 for fresh stream)
+        - `live`: must be `true` for live streaming
+
+        Go Client callsite: `StreamRunEvents` in client.go.
+
+        SSE event format (each event frame):
+        ```
+        id: event-xxx
+        event: event.type
+        data: {"seq": 1, "payload": {}}
+        ```
+
+        Heartbeat comments (`:heartbeat\\n\\n`) keep the connection alive.
+        Terminal events (`run.completed`, `run.failed`, `run.cancelled`) close the stream.
+
+        The Go Client reconnects with exponential backoff (1s base, 8s cap, 45s idle timeout)
+        on network errors, idle timeouts, and 502/503/504/429 responses.
+        4xx (except 429) are not retried.
+      tags:
+        - Event
+      parameters:
+        - $ref: '#/components/parameters/RunID'
+        - name: after_seq
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+          description: |
+            Resume cursor: events with seq <= after_seq are skipped.
+            0 means start from the beginning.
+        - name: live
+          in: query
+          required: true
+          schema:
+            type: boolean
+          description: Must be true for live streaming mode.
+      responses:
+        '200':
+          description: SSE event stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+              examples:
+                toolStarted:
+                  $ref: '#/components/examples/SSEEvent.toolStarted'
+                runCompleted:
+                  $ref: '#/components/examples/SSEEvent.runCompleted'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /runs/{run_id}/cancel:
+    post:
+      operationId: cancelRun
+      summary: Request run cancellation
+      description: |
+        Requests cancellation of the given run. The run transitions to `cancelling`
+        and eventually to `cancelled` once all in-flight tools complete or time out.
+
+        Go Client callsite: `CancelRun` in client.go.
+      tags:
+        - Run
+      parameters:
+        - $ref: '#/components/parameters/RunID'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Empty body or additional context.
+      responses:
+        '200':
+          description: Cancellation accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                description: Empty object on success.
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Run is already in a terminal state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /approvals/{approval_id}/decide:
+    post:
+      operationId: decideApproval
+      summary: Decide on a tool approval request
+      description: |
+        Approve or deny a pending tool approval.
+
+        Go Client callsite: `DecideApproval` in client.go.
+      tags:
+        - Approval
+      parameters:
+        - name: approval_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Approval ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalDecisionRequest'
+      responses:
+        '200':
+          description: Decision recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApprovalDecisionResult'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+components:
+  schemas:
+    # ---- Conversation ----
+
+    CreateConversationRequest:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          description: Conversation title. Truncated to 24 runes by the Go Client.
+          maxLength: 200
+        agent_profile_id:
+          type: string
+          description: |
+            Agent profile identifier. Maps to `one-click-quick` (Quick) or
+            `one-click-cocreate` (Deep).
+          enum: [one-click-quick, one-click-cocreate]
+        metadata:
+          type: object
+          description: |
+            Business context stored with the conversation.
+            The Go Client sends `source`, `local_run_id`, `user_id`, `project_id`,
+            `mode`, `agent_profile_id`, `response_language`.
+            The MAA API must accept arbitrary additional keys.
+          additionalProperties:
+            type: string
+          example:
+            source: wisecut-agent-film
+            local_run_id: run-xxx
+            user_id: "1001"
+            project_id: "2001"
+            mode: quick
+            agent_profile_id: one-click-quick
+            response_language: zh-CN
+
+    CreateConversationResponse:
+      type: object
+      required:
+        - conversation_id
+        - langgraph_thread_id
+        - status
+      properties:
+        conversation_id:
+          type: string
+          description: MAA conversation identifier.
+        langgraph_thread_id:
+          type: string
+          description: LangGraph thread ID. May equal conversation_id in current implementation.
+        status:
+          type: string
+          description: Initial conversation status.
+          enum: [created, active]
+          default: created
+
+    ConversationDetail:
+      allOf:
+        - $ref: '#/components/schemas/Conversation'
+        - type: object
+          properties:
+            active_run:
+              oneOf:
+                - type: object
+                  $ref: '#/components/schemas/Run'
+                - type: 'null'
+            messages:
+              type: array
+              items:
+                $ref: '#/components/schemas/Message'
+            interactions:
+              type: array
+              items:
+                type: object
+                description: |
+                  Raw interaction object. Structure varies by intent.
+                  See schemas/interactions/*.json for card-specific schemas.
+            recent_events:
+              type: array
+              items:
+                $ref: '#/components/schemas/StoredEvent'
+
+    Conversation:
+      type: object
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: string
+          description: Conversation ID.
+        status:
+          type: string
+          enum: [created, active, waiting_interaction, waiting_approval, completed, failed, cancelled]
+        metadata:
+          type: object
+          description: Business metadata.
+          additionalProperties:
+            type: string
+
+    # ---- Message ----
+
+    MessageRequest:
+      type: object
+      required:
+        - type
+        - content
+      properties:
+        type:
+          type: string
+          enum: [message, guidance]
+          description: |
+            `message` for normal messages.
+            `guidance` for user guidance sent during an active run.
+        content:
+          type: string
+          description: |
+            Message content. For `message` type from Go Client's StartRun,
+            this contains a serialized agent input with a specific prefix
+            (see fixture `start_run_message_content.json`).
+        metadata:
+          type: object
+          description: Optional metadata attached to the message.
+
+    InteractionResponseRequest:
+      type: object
+      required:
+        - type
+        - interaction_id
+        - action
+        - content
+        - client_action_id
+      properties:
+        type:
+          type: string
+          const: interaction_response
+        interaction_id:
+          type: string
+          description: The interaction ID being responded to.
+        action:
+          type: string
+          enum: [approve, deny, submit, cancel, ai_decide]
+          description: |
+            `submit` for user-submitted form answers.
+            `approve` for confirming generation.
+            `ai_decide` for auto-approval.
+        content:
+          oneOf:
+            - type: string
+            - type: object
+          description: |
+            The answer content. String for simple confirmations,
+            object for structured form data.
+        client_action_id:
+          type: string
+          description: |
+            Client-generated action ID. Used for idempotency.
+            If empty, the server generates one.
+        metadata:
+          type: object
+          properties:
+            value:
+              oneOf:
+                - type: object
+                - type: array
+                - type: string
+              description: Structured answer value from the form.
+            summary:
+              type: string
+              description: Human-readable summary of the answer.
+            response_language:
+              type: string
+              description: Normalized response language (e.g., zh-CN, en-US).
+            response_language_instruction:
+              type: string
+              description: Instruction for the LLM about the response language.
+
+    PostMessageResponse:
+      type: object
+      required:
+        - conversation_id
+        - run_id
+        - accepted_as_inbox
+        - events_url
+      properties:
+        conversation_id:
+          type: string
+        run_id:
+          type: string
+          description: The run created or resumed by this message.
+        accepted_as_inbox:
+          type: boolean
+          description: True if the message was accepted as an inbox (not yet processed).
+        events_url:
+          type: string
+          description: URL to subscribe to events for this run.
+
+    Message:
+      type: object
+      required:
+        - id
+        - run_id
+        - role
+        - content
+        - created_at
+      properties:
+        id:
+          type: string
+        conversation_id:
+          type: string
+        run_id:
+          type: string
+        role:
+          type: string
+          enum: [user, assistant, system]
+        type:
+          type: string
+          description: "Message type: message, guidance, interaction_response."
+        content:
+          type: string
+        metadata:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+
+    # ---- Run ----
+
+    Run:
+      type: object
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: string
+        conversation_id:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, waiting_interaction, waiting_approval, rendering, completed, failed, cancelled]
+        phase:
+          type: string
+          description: Current graph phase name.
+          enum: [starting, collect_product_context, generate_strategy, generate_script, review_script, prepare_generation, collect_materials, match_digital_human, render_video, validate_delivery, publishing, completed, failed, cancelled]
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+        error:
+          type: string
+          description: Error code or message if the run failed.
+
+    # ---- Event ----
+
+    StoredEvent:
+      type: object
+      required:
+        - id
+        - run_id
+        - seq
+        - type
+        - payload
+      properties:
+        id:
+          type: string
+          description: Event ID. Usually the SSE `id` field.
+        run_id:
+          type: string
+        seq:
+          type: integer
+          description: Monotonically increasing sequence number within the run.
+          minimum: 0
+        type:
+          type: string
+          description: Event type. See the EventType enum.
+        payload:
+          type: object
+          description: Event payload. Structure varies by type.
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: number
+              - type: boolean
+              - type: object
+              - type: array
+        visible:
+          type: boolean
+          description: Whether the event is visible in the frontend timeline.
+          default: true
+        created_at:
+          type: string
+          format: date-time
+
+    # ---- Approval ----
+
+    ApprovalDecisionRequest:
+      type: object
+      required:
+        - decision
+      properties:
+        decision:
+          type: object
+          required:
+            - action
+          properties:
+            action:
+              type: string
+              enum: [approve, deny]
+            reason:
+              type: string
+              description: Optional reason for the decision.
+
+    ApprovalDecisionResult:
+      type: object
+      required:
+        - approval
+        - event
+        - should_resume_runner
+      properties:
+        approval:
+          type: object
+          description: Updated approval record.
+        event:
+          $ref: '#/components/schemas/ApprovalEvent'
+        should_resume_runner:
+          type: boolean
+          description: Whether the graph runner should resume after this decision.
+
+    ApprovalEvent:
+      type: object
+      required:
+        - id
+        - conversation_id
+        - run_id
+        - seq
+        - type
+        - payload
+      properties:
+        id:
+          type: string
+        conversation_id:
+          type: string
+        run_id:
+          type: string
+        seq:
+          type: integer
+        type:
+          type: string
+          enum: [approval.required, approval.resolved]
+        payload:
+          type: object
+
+    # ---- Artifact ----
+
+    ArtifactDetail:
+      type: object
+      required:
+        - artifact
+      properties:
+        artifact:
+          type: object
+          description: Full artifact record.
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: number
+              - type: boolean
+              - type: object
+              - type: array
+
+    # ---- Error ----
+
+    Error:
+      type: object
+      required:
+        - method
+        - path
+        - status_code
+        - body
+      properties:
+        method:
+          type: string
+          description: HTTP method of the failed request.
+        path:
+          type: string
+          description: Request path.
+        status_code:
+          type: integer
+          description: HTTP status code.
+        body:
+          type: string
+          description: Response body (truncated to 4096 bytes by the Go Client).
+
+  # ---- Parameters ----
+
+  parameters:
+    ConversationID:
+      name: conversation_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: MAA conversation identifier.
+    RunID:
+      name: run_id
+      in: path
+      required: true
+      schema:
+        type: string
+      description: MAA run identifier.
+
+  # ---- Responses ----
+
+  responses:
+    BadRequest:
+      description: Bad request — invalid input or business rule violation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Conflict — duplicate request_id or terminal state mutation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ValidationError:
+      description: Validation error — tool input or message schema mismatch.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  # ---- Examples ----
+
+  examples:
+    CreateConversationRequest.quick:
+      value:
+        title: 商品视频需求
+        agent_profile_id: one-click-quick
+        metadata:
+          source: wisecut-agent-film
+          user_id: 1001
+          project_id: 2001
+          mode: quick
+          agent_profile_id: one-click-quick
+          response_language: zh-CN
+
+    CreateConversationRequest.deep:
+      value:
+        title: 深度共创视频
+        agent_profile_id: one-click-cocreate
+        metadata:
+          source: wisecut-agent-film
+          user_id: 1001
+          project_id: 2001
+          mode: deep
+          agent_profile_id: one-click-cocreate
+          response_language: zh-CN
+
+    SSEEvent.toolStarted:
+      value: |
+        id: event-1
+        event: tool.started
+        data: {"seq": 1, "payload": {"tool_name": "extract_product_facts", "run_id": "run-xxx"}}
+
+    SSEEvent.runCompleted:
+      value: |
+        id: event-10
+        event: run.completed
+        data: {"seq": 10, "payload": {"status": "completed", "run_id": "run-xxx"}}

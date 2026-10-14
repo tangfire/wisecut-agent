@@ -1,0 +1,7 @@
+{
+  "_comment": "Error response body (non-2xx)",
+  "method": "POST",
+  "path": "/conversations",
+  "status_code": 400,
+  "body": "{\"detail\":\"invalid agent_profile_id\"}"
+}

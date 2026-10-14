@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wisecut-agent/schemas/events/approval-required.json",
+  "title": "approval.required",
+  "description": "Emitted when a L3 tool execution requires human approval.",
+  "type": "object",
+  "required": ["seq", "type", "payload"],
+  "properties": {
+    "seq": { "type": "integer", "minimum": 0 },
+    "type": { "type": "string", "const": "approval.required" },
+    "payload": {
+      "type": "object",
+      "required": ["approval_id", "run_id", "tool_name"],
+      "properties": {
+        "approval_id": { "type": "string" },
+        "run_id": { "type": "string" },
+        "tool_name": { "type": "string" },
+        "arguments": { "type": "object" },
+        "risk_level": {
+          "type": "string",
+          "enum": ["L0", "L1", "L2", "L3"]
+        },
+        "description": { "type": "string" },
+        "expires_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

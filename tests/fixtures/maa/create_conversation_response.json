@@ -1,0 +1,6 @@
+{
+  "_comment": "Response body for POST /conversations (201)",
+  "conversation_id": "conv-test-001",
+  "langgraph_thread_id": "conv-test-001",
+  "status": "created"
+}

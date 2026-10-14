@@ -1,0 +1,9 @@
+{
+  "_comment": "Message body for POST /conversations/{id}/messages when starting a run",
+  "type": "message",
+  "content": "使用 $viral-ad-replication 完成以下需求\n输入：\n{\n  \"content\": \"帮我生成一个关于无线耳机的营销视频\",\n  \"link\": \"https://example.com/product/123\",\n  \"files\": [],\n  \"material_assets\": []\n}",
+  "metadata": {
+    "source": "wisecut-agent-film",
+    "response_language": "zh-CN"
+  }
+}

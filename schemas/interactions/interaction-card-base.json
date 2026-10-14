@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wisecut-agent/schemas/interactions/interaction-card-base.json",
+  "title": "Interaction Card Base",
+  "description": "Base structure for all frontend interaction cards.",
+  "type": "object",
+  "required": ["intent", "status"],
+  "properties": {
+    "intent": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["pending", "answered", "cancelled"]
+    },
+    "cards": {
+      "type": "array",
+      "description": "Sub-cards for component_cards intent.",
+      "items": { "type": "object" }
+    },
+    "options": {
+      "type": "array",
+      "description": "Selectable options.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "option_id": { "type": "string" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "image_url": { "type": "string" },
+          "selected": { "type": "boolean" }
+        }
+      }
+    },
+    "value": { "type": "object" },
+    "message": { "type": "string" },
+    "actions": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}

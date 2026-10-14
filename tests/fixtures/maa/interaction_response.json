@@ -1,0 +1,16 @@
+{
+  "_comment": "interaction_response message body for POST /conversations/{id}/messages",
+  "type": "interaction_response",
+  "interaction_id": "interaction-test-001",
+  "action": "approve",
+  "content": "已确认",
+  "client_action_id": "act-test-001",
+  "metadata": {
+    "value": {
+      "selected_option_id": "opt-1"
+    },
+    "summary": "已选择：选项一",
+    "response_language": "zh-CN",
+    "response_language_instruction": "请使用简体中文回答用户。结构化 ID、枚举值、URL 和代码类字段保持原样。"
+  }
+}

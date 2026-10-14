@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wisecut-agent/schemas/events/agent-progress.json",
+  "title": "agent.progress",
+  "description": "Emitted to report progress percentage and status text.",
+  "type": "object",
+  "required": ["seq", "type", "payload"],
+  "properties": {
+    "seq": { "type": "integer", "minimum": 0 },
+    "type": { "type": "string", "const": "agent.progress" },
+    "payload": {
+      "type": "object",
+      "required": ["progress", "message"],
+      "properties": {
+        "progress": {
+          "type": "integer",
+          "description": "Progress percentage 0-100.",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "message": { "type": "string" },
+        "stage": { "type": "string" }
+      }
+    }
+  }
+}
