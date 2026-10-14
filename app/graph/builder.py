@@ -333,41 +333,46 @@ async def request_generation_approval(state: AgentFilmState) -> dict[str, Any]:
 async def collect_materials(state: AgentFilmState) -> dict[str, Any]:
     """Search and select materials.
 
-    WP-09: implement actual material collection.
+    WP-09: delegates to select_materials_for_render.
     """
-    return {"materials": state.get("materials", [])}
+    from app.graph.nodes.media import collect_materials as _collect
+    return await _collect(state)
 
 
 async def match_digital_human(state: AgentFilmState) -> dict[str, Any]:
     """Match digital human to product/script.
 
-    WP-09: implement actual digital human matching.
+    WP-09: delegates to match_digital_human_node.
     """
-    return {"digital_human": state.get("digital_human")}
+    from app.graph.nodes.media import match_digital_human_node as _match
+    return await _match(state)
 
 
 async def render_video(state: AgentFilmState) -> dict[str, Any]:
     """Trigger video rendering.
 
-    WP-09: implement actual video rendering.
+    WP-09: delegates to render_video_node.
     """
-    return {"render_job": state.get("render_job", {})}
+    from app.graph.nodes.media import render_video_node as _render
+    return await _render(state)
 
 
 async def validate_delivery(state: AgentFilmState) -> dict[str, Any]:
     """Validate rendered video.
 
-    WP-09: implement actual validation.
+    WP-09: delegates to validate_delivery_node.
     """
-    return {}
+    from app.graph.nodes.media import validate_delivery_node as _validate
+    return await _validate(state)
 
 
 async def publish_artifacts(state: AgentFilmState) -> dict[str, Any]:
     """Publish final artifacts.
 
-    WP-09: implement actual artifact publishing.
+    WP-09: delegates to publish_artifacts_node.
     """
-    return {"artifacts": state.get("artifacts", [])}
+    from app.graph.nodes.media import publish_artifacts_node as _publish
+    return await _publish(state)
 
 
 # ---------------------------------------------------------------------------

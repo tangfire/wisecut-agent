@@ -1,48 +1,76 @@
-"""Media nodes: materials, digital human, rendering, validation, publishing.
+"""Media pipeline nodes: materials, digital human, render, validate, publish.
 
-WP-09 will implement the actual provider calls.  WP-06 provides stubs.
+Uses domain logic from app.domain.agent_film for actual implementation.
 """
-
 from __future__ import annotations
 
+from app.domain.agent_film import (
+    select_materials_for_render,
+    match_digital_human,
+    render_video,
+    validate_video_delivery,
+    publish_artifacts,
+)
 from app.graph.state import AgentFilmState
 
 
 async def collect_materials(state: AgentFilmState) -> dict[str, Any]:
-    """Search and select materials.
+    """Search and select materials for rendering.
 
-    WP-09: replace with actual material provider call.
+    Delegates to select_materials_for_render which:
+      - Uses MaterialProvider to search materials
+      - Selects top 3 materials for rendering
     """
-    return {"materials": state.get("materials", [])}
+    return await select_materials_for_render(state)
 
 
-async def match_digital_human(state: AgentFilmState) -> dict[str, Any]:
+async def match_digital_human_node(state: AgentFilmState) -> dict[str, Any]:
     """Match digital human to product/script.
 
-    WP-09: replace with actual digital human provider call.
+    Delegates to match_digital_human which:
+      - Quick mode: returns None (skip)
+      - Deep mode: uses DigitalHumanProvider to find best match
     """
-    return {"digital_human": state.get("digital_human")}
+    return await match_digital_human(state)
 
 
-async def render_video(state: AgentFilmState) -> dict[str, Any]:
+async def render_video_node(state: AgentFilmState) -> dict[str, Any]:
     """Trigger video rendering.
 
-    WP-09: replace with actual video render provider call.
+    Delegates to render_video which:
+      - Uses VideoRenderProvider (demo or real)
+      - Updates render_job with video_url, cover_url, format, resolution
+      - Handles errors gracefully
     """
-    return {"render_job": {}}
+    return await render_video(state)
 
 
-async def validate_delivery(state: AgentFilmState) -> dict[str, Any]:
-    """Validate rendered video.
+async def validate_delivery_node(state: AgentFilmState) -> dict[str, Any]:
+    """Validate rendered video output.
 
-    WP-09: replace with actual validation logic.
+    Checks:
+      - video_url is present in render_job
+      - video_url passes validate_video_delivery (protocol, SSRF basic check)
     """
-    return {}
+    render_job = state.get("render_job", {})
+    video_url = render_job.get("video_url")
+
+    if not video_url:
+        return {"errors": state.get("errors", []) + [{"node": "validate_delivery", "error": "No video_url in render_job", "fatal": True}]}
+
+    validation = validate_video_delivery(video_url)
+    if not validation["valid"]:
+        return {"errors": state.get("errors", []) + [{"node": "validate_delivery", "error": validation["error"], "fatal": True}]}
+
+    return {"render_job": {**render_job, "delivery_validated": True}}
 
 
-async def publish_artifacts(state: AgentFilmState) -> dict[str, Any]:
+async def publish_artifacts_node(state: AgentFilmState) -> dict[str, Any]:
     """Publish final artifacts.
 
-    WP-09: replace with actual artifact publishing.
+    Delegates to publish_artifacts which:
+      - Creates final_video Artifact record
+      - Emits artifact.created event
+      - Emits business.message event with business_key=final_video
     """
-    return {"artifacts": state.get("artifacts", [])}
+    return await publish_artifacts(state)

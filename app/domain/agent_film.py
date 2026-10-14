@@ -16,11 +16,21 @@ import json
 import logging
 from typing import Any
 
-from app.graph.state import AgentFilmState
+from datetime import datetime, timezone
+
 from app.graph.profiles import get_profile
 from app.llm.factory import create_llm
-from app.providers.research import ProductResearchProvider
+from app.persistence.repositories import (
+    ArtifactRepository,
+    EventRepository,
+    OutboxRepository,
+)
+from app.persistence.unit_of_work import unit_of_work
+from app.providers.digital_human import DigitalHumanProvider
 from app.providers.materials import MaterialProvider
+from app.providers.research import ProductResearchProvider
+from app.providers.video import VideoRenderProvider
+from app.protocol.language import generate_id
 
 logger = logging.getLogger(__name__)
 
@@ -733,3 +743,313 @@ def build_generation_approval(state: AgentFilmState) -> dict[str, Any]:
         "product_name": ctx.get("product_name", ""),
         "shot_count": storyboard.get("total_shots", 0),
     }
+
+
+# ---------------------------------------------------------------------------
+# Material Selection (WP-09)
+# ---------------------------------------------------------------------------
+
+
+async def select_materials_for_render(state: AgentFilmState) -> dict[str, Any]:
+    """Select materials from search results for rendering."""
+    existing_materials = state.get("materials", [])
+    if not existing_materials:
+        material_provider = MaterialProvider()
+        try:
+            result = await material_provider.execute(
+                query=state.get("product_context", {}).get("product_name", ""),
+                style=state.get("script", {}).get("style", "balanced"),
+            )
+            if result.success:
+                existing_materials = result.data.get("materials", [])
+        except Exception as exc:
+            logger.warning("Material selection failed: %s", exc)
+
+    selected = existing_materials[:3] if existing_materials else []
+    return {"materials": selected}
+
+
+# ---------------------------------------------------------------------------
+# Digital Human Matching (WP-09)
+# ---------------------------------------------------------------------------
+
+
+async def match_digital_human(state: AgentFilmState) -> dict[str, Any]:
+    """Match a digital human to the product/script."""
+    profile = get_profile(state.get("profile_id", "one-click-quick"))
+    if profile.mode == "quick":
+        return {"digital_human": None}
+
+    provider = DigitalHumanProvider()
+    try:
+        result = await provider.execute(
+            product_category=state.get("product_context", {}).get("product_type", "general"),
+            script_style=state.get("script", {}).get("style", "balanced"),
+            language=state.get("language", "zh-CN"),
+        )
+        if result.success:
+            return {"digital_human": result.data}
+    except Exception as exc:
+        logger.warning("Digital human matching failed: %s", exc)
+
+    return {"digital_human": None}
+
+
+# ---------------------------------------------------------------------------
+# Video Rendering (WP-09)
+# ---------------------------------------------------------------------------
+
+
+async def render_video(state: AgentFilmState) -> dict[str, Any]:
+    """Trigger video rendering via VideoRenderProvider."""
+    profile = get_profile(state.get("profile_id", "one-click-quick"))
+    script = state.get("script", {})
+    storyboard = state.get("storyboard", {})
+    materials = state.get("materials", [])
+    digital_human = state.get("digital_human")
+
+    provider = VideoRenderProvider()
+    try:
+        result = await provider.execute(
+            script=script,
+            storyboard=storyboard,
+            materials=materials,
+            digital_human=digital_human,
+            aspect_ratio=profile.default_aspect_ratio,
+            duration_seconds=script.get("total_duration", 30),
+            language=state.get("language", "zh-CN"),
+        )
+        if result.success:
+            render_job = dict(state.get("render_job", {}))
+            render_job.update({
+                "video_url": result.data.get("video_url"),
+                "cover_url": result.data.get("cover_url"),
+                "format": result.data.get("format", "mp4"),
+                "resolution": result.data.get("resolution", "1920x1080"),
+                "status": "completed",
+            })
+            return {"render_job": render_job}
+    except Exception as exc:
+        logger.error("Video rendering failed: %s", exc)
+        errors = state.get("errors", []) + [{"node": "render_video", "error": str(exc), "fatal": False}]
+        return {"errors": errors}
+
+    errors = state.get("errors", []) + [{"node": "render_video", "error": "Rendering failed", "fatal": False}]
+    return {"errors": errors}
+
+
+# ---------------------------------------------------------------------------
+# Video Delivery Validation (WP-09)
+# ---------------------------------------------------------------------------
+
+
+def validate_video_delivery(video_url: str) -> dict[str, Any]:
+    """Validate a rendered video URL."""
+    if not video_url:
+        return {"valid": False, "error": "video_url is empty"}
+
+    video_url = video_url.strip()
+    if not video_url:
+        return {"valid": False, "error": "video_url is empty"}
+
+    if not video_url.lower().startswith(("http://", "https://")):
+        return {"valid": False, "error": "video_url must use http or https protocol"}
+
+    # Extract host: handle IPv6 bracket literals vs hostname:port
+    host_and_port = video_url.split("/")[2].lower()
+    if host_and_port.startswith("[") and host_and_port.endswith("]"):
+        host = host_and_port[1:-1]
+    else:
+        host = host_and_port.split(":")[0]
+    if host in ("localhost", "127.0.0.1", "0.0.0.0", "::1"):
+        return {"valid": False, "error": "video_url points to internal address"}
+
+    video_extensions = (".mp4", ".mov", ".avi", ".webm", ".m3u8")
+    if not any(video_url.lower().endswith(ext) for ext in video_extensions):
+        logger.debug("Video URL doesn't have standard extension: %s", video_url)
+
+    return {"valid": True}
+
+
+# ---------------------------------------------------------------------------
+# Artifact Service (WP-09)
+# ---------------------------------------------------------------------------
+
+
+async def create_final_video_artifact(
+    state: AgentFilmState,
+    video_url: str,
+    cover_url: str | None = None,
+) -> dict[str, Any]:
+    """Create the final video Artifact and emit artifact.created + business.message."""
+    artifact_id = generate_id("art")
+    now = datetime.now(timezone.utc)
+    profile = get_profile(state.get("profile_id", "one-click-quick"))
+    script = state.get("script", {})
+    storyboard = state.get("storyboard", {})
+
+    validation = validate_video_delivery(video_url)
+    if not validation["valid"]:
+        return {"success": False, "error": validation["error"]}
+
+    artifact_payload = {
+        "final_video": {
+            "ready": True,
+            "status": "completed",
+            "video_url": video_url,
+            "cover_url": cover_url or "",
+        },
+        "specs": {
+            "duration_seconds": script.get("total_duration", 30),
+            "aspect_ratio": profile.default_aspect_ratio,
+            "format": "mp4",
+            "resolution": "1920x1080",
+        },
+        "storyboard_segments": [
+            {
+                "shot_number": shot.get("shot_number", i + 1),
+                "duration_seconds": shot.get("duration_seconds", 0),
+                "description": shot.get("camera_description", ""),
+                "script_content": shot.get("voiceover", ""),
+                "video_url": shot.get("video_url", ""),
+                "cover_url": shot.get("cover_url", ""),
+                "begin_time": shot.get("begin_time", 0),
+                "end_time": shot.get("end_time", 0),
+            }
+            for i, shot in enumerate(storyboard.get("shots", []))
+        ],
+        "final_delivery_check": {
+            "status": "pass",
+            "checked_at": now.isoformat(),
+        },
+    }
+
+    async with unit_of_work() as uow:
+        artifact_repo = ArtifactRepository(uow.session)
+        event_repo = EventRepository(uow.session)
+        outbox_repo = OutboxRepository(uow.session)
+
+        await artifact_repo.create(
+            artifact_id=artifact_id,
+            conversation_id=state["conversation_id"],
+            run_id=state["run_id"],
+            artifact_type="final_video",
+            payload=artifact_payload,
+            uri=video_url,
+        )
+
+        seq = await event_repo.get_next_seq(state["conversation_id"], state["run_id"])
+
+        # artifact.created event
+        artifact_event_id = generate_id("event")
+        await event_repo.create(
+            event_id=artifact_event_id,
+            conversation_id=state["conversation_id"],
+            run_id=state["run_id"],
+            seq=seq,
+            event_type="artifact.created",
+            payload={
+                "artifact_id": artifact_id,
+                "uri": video_url,
+                "title": script.get("title", "Final Video"),
+                "schema_name": "final_video",
+                "schema_version": "1.0.0",
+                "output_key": "final_video",
+                "mime_type": "video/mp4",
+                "producer": "post_production_agent",
+                "summary": f"Final video: {script.get('title', 'Agent Film')}",
+                "preview": {
+                    "video_url": video_url,
+                    "duration": str(script.get("total_duration", 30)),
+                    "aspect_ratio": profile.default_aspect_ratio,
+                    "status": "completed",
+                },
+                "source_type": "agent_generated",
+                "trust_level": "high",
+                "source_refs": [],
+                "built_for": {"constraints": {}, "from": {}},
+                "created_at": now.isoformat(),
+                "trace": {"agent_name": "post_production_agent"},
+                "final_video": {
+                    "ready": True,
+                    "status": "completed",
+                    "video_url": video_url,
+                },
+            },
+        )
+
+        # business.message event (primary delivery path)
+        business_event_id = generate_id("event")
+        await event_repo.create(
+            event_id=business_event_id,
+            conversation_id=state["conversation_id"],
+            run_id=state["run_id"],
+            seq=seq + 1,
+            event_type="business.message",
+            payload={
+                "business_key": "final_video",
+                "status": "completed",
+                "message": {
+                    "business_key": "final_video",
+                    "status": "completed",
+                    "payload": {
+                        "video_url": video_url,
+                        "cover_url": cover_url or "",
+                        "title": script.get("title", "Final Video"),
+                        "duration": script.get("total_duration", 30),
+                        "aspect_ratio": profile.default_aspect_ratio,
+                        "storyboard_segments": storyboard.get("shots", []),
+                    },
+                },
+            },
+        )
+
+        await outbox_repo.enqueue(
+            aggregate_type="artifact",
+            aggregate_id=artifact_id,
+            event_type="artifact.created",
+            payload={"artifact_id": artifact_id, "final_video": {"ready": True, "video_url": video_url}},
+        )
+        await outbox_repo.enqueue(
+            aggregate_type="business_message",
+            aggregate_id=state["run_id"],
+            event_type="business.message",
+            payload={"business_key": "final_video", "video_url": video_url},
+        )
+
+    logger.info("Final video artifact created: artifact_id=%s video_url=%s", artifact_id, video_url)
+
+    return {
+        "success": True,
+        "artifact_id": artifact_id,
+        "video_url": video_url,
+        "cover_url": cover_url,
+        "events": ["artifact.created", "business.message"],
+    }
+
+
+async def publish_artifacts(state: AgentFilmState) -> dict[str, Any]:
+    """Publish final artifacts."""
+    render_job = state.get("render_job", {})
+    video_url = render_job.get("video_url")
+    cover_url = render_job.get("cover_url")
+
+    if not video_url:
+        logger.warning("No video_url in render_job, cannot publish artifacts")
+        return {"artifacts": state.get("artifacts", [])}
+
+    result = await create_final_video_artifact(state=state, video_url=video_url, cover_url=cover_url)
+
+    if result.get("success"):
+        artifacts = state.get("artifacts", []) + [{
+            "id": result["artifact_id"],
+            "type": "final_video",
+            "uri": result["video_url"],
+            "status": "ready",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }]
+        return {"artifacts": artifacts}
+
+    logger.error("Failed to create final video artifact: %s", result.get("error"))
+    errors = state.get("errors", []) + [{"node": "publish_artifacts", "error": result.get("error"), "fatal": False}]
+    return {"artifacts": state.get("artifacts", []), "errors": errors}
