@@ -59,7 +59,7 @@ docs(agent): update deployment and troubleshooting
 | WP-00 仓库和执行基线 | 1、16、17、20 | [x] | `b338d72` | 文档基线已提交 |
 | WP-01 MAA 协议冻结 | 2、2.1、9 | [x] | `e1ed9c3` | OpenAPI、27 Schema、17 Fixture、115 契约测试 |
 | WP-02 基础工程和配置 | 3.2、12、13、13.3 | [x] | `d833500` | FastAPI、配置、日志、健康检查、126 tests |
-| WP-03 持久化和迁移 | 5、5.3、5.4 | [x] | `待完成` | Repository、UoW、Checkpoint、Outbox、139 tests |
+| WP-03 持久化和迁移 | 5、5.3、5.4 | [x] | `1fe860c` | Repository、UoW、Checkpoint、Outbox、139 tests |
 | WP-04 MAA API 和事件流 | 9、10.1 | [ ] | - | Conversation、Message、Run、SSE |
 | WP-05 Worker 和恢复机制 | 10、10.3、10.4 | [ ] | - | RabbitMQ、锁、取消、重试、恢复 |
 | WP-06 LangGraph Runtime | 6、7、7.4 | [ ] | - | StateGraph、Profile、Interrupt、Prompt |
@@ -258,7 +258,7 @@ docs(agent): update deployment and troubleshooting
 - [x] Repository 集成测试通过（13 个 repository 单元测试全部通过）。
 - [x] execution 更新为 `[x]` 并记录 commit。
 
-完成 commit：`待完成`
+完成 commit：`1fe860c`
 
 验证记录：
 
@@ -274,7 +274,7 @@ docs(agent): update deployment and troubleshooting
   - Repository 覆盖：Conversation, Run, Message, Event, Interaction, Approval, Artifact, ToolExecution, Checkpoint, Outbox
   - UTC 时间策略验证通过
   - SSE 格式化输出符合 Go Client 期望
-关联 commit：待完成
+关联 commit：1fe860c
 ```
 
 ### WP-04 MAA API 和事件流
