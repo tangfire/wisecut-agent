@@ -58,7 +58,7 @@ docs(agent): update deployment and troubleshooting
 | --- | --- | --- | --- | --- |
 | WP-00 仓库和执行基线 | 1、16、17、20 | [x] | `b338d72` | 文档基线已提交 |
 | WP-01 MAA 协议冻结 | 2、2.1、9 | [x] | `e1ed9c3` | OpenAPI、27 Schema、17 Fixture、115 契约测试 |
-| WP-02 基础工程和配置 | 3.2、12、13、13.3 | [x] | `待完成` | FastAPI、配置、日志、健康检查、126 tests |
+| WP-02 基础工程和配置 | 3.2、12、13、13.3 | [x] | `d833500` | FastAPI、配置、日志、健康检查、126 tests |
 | WP-03 持久化和迁移 | 5、5.3、5.4 | [ ] | - | PostgreSQL、Checkpoint、Outbox |
 | WP-04 MAA API 和事件流 | 9、10.1 | [ ] | - | Conversation、Message、Run、SSE |
 | WP-05 Worker 和恢复机制 | 10、10.3、10.4 | [ ] | - | RabbitMQ、锁、取消、重试、恢复 |
@@ -203,7 +203,7 @@ docs(agent): update deployment and troubleshooting
 - [x] CI 可以执行静态检查和基础测试（ruff/mypy/pytest 配置已就绪）。
 - [x] execution 更新为 `[x]` 并记录 commit。
 
-完成 commit：`待完成`
+完成 commit：`d833500`
 
 验证记录：
 
@@ -212,13 +212,14 @@ docs(agent): update deployment and troubleshooting
 日期：2026-10-14
 命令：python -m pytest tests/ -v
 结果：退出码 0
-关键输出：126 passed in 0.85s
+关键输出：126 passed in 0.49s
   - 115 契约测试（WP-01）全部通过
   - 11 单元测试（Settings + Protocol）全部通过
   - FastAPI app 创建成功，15 个路由注册
   - /health → 200, /version → 200, /conversations → 201
   - 结构化 JSON 日志输出包含 trace_id/request_id
-关联 commit：待完成
+  - 生产配置校验：enable_demo_provider=true 在 production 环境下正确报错
+关联 commit：d833500
 ```
 
 ### WP-03 持久化和迁移
