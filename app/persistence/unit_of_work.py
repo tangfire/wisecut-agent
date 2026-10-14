@@ -62,6 +62,11 @@ class UnitOfWork:
     async def flush(self) -> None:
         await self._session.flush()
 
+    @property
+    def session(self) -> AsyncSession:
+        """Expose the underlying session for repository construction."""
+        return self._session
+
 
 @asynccontextmanager
 async def unit_of_work() -> AsyncGenerator[UnitOfWork, None]:

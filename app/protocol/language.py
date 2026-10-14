@@ -4,8 +4,14 @@ Go Client reference: internal/third_party/maa/agent/client.go
   - normalizeAgentFilmResponseLanguage
   - buildAgentFilmResponseLanguageInstruction
 """
-
 from __future__ import annotations
+
+import uuid
+
+
+def generate_id(prefix: str) -> str:
+    """Generate a stable unique ID with a prefix."""
+    return f"{prefix}-{uuid.uuid4().hex[:12]}"
 
 
 def normalize_response_language(language: str) -> str:

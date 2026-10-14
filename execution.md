@@ -62,7 +62,7 @@ docs(agent): update deployment and troubleshooting
 | WP-03 持久化和迁移 | 5、5.3、5.4 | [x] | `1fe860c` | Repository、UoW、Checkpoint、Outbox、139 tests |
 | WP-04 MAA API 和事件流 | 9、10.1 | [x] | `待提交` | Conversation、Message、Run、SSE、Approval、Artifact |
 | WP-05 Worker 和恢复机制 | 10、10.3、10.4 | [x] | `待提交` | RabbitMQ、锁、取消、重试、恢复 |
-| WP-06 LangGraph Runtime | 6、7、7.4 | [x] | `待提交` | StateGraph、Profile、Interrupt、Prompt |
+| WP-06 LangGraph Runtime | 6、7、7.4 | [x] | `85223ef` | StateGraph、Profile、Interrupt、Prompt |
 | WP-07 Tool 和 Provider 平台 | 8、8.4 | [ ] | - | Tool Registry、审批、Provider |
 | WP-08 Agent Film 业务图 | 7.1、7.2、7.3 | [ ] | - | 商品、策略、脚本、分镜、生成 |
 | WP-09 媒体和 Artifact 能力 | 8.2、8.3、9.5 | [ ] | - | 素材、数字人、视频、产物回填 |
@@ -321,7 +321,7 @@ docs(agent): update deployment and troubleshooting
 - [x] API 不直接执行长时间 Agent 工作流
 - [x] 集成测试覆盖创建会话、发送消息、幂等、SSE、取消、审批 404
 
-完成 commit：`待提交`
+完成 commit：`85223ef`
 
 验证记录：
 
@@ -385,7 +385,7 @@ docs(agent): update deployment and troubleshooting
 - [x] 启动时恢复非终态 Run
 - [x] 取消 flag 通过 Redis 传播
 
-完成 commit：`待提交`
+完成 commit：`85223ef`
 
 验证记录：
 
@@ -457,7 +457,7 @@ docs(agent): update deployment and troubleshooting
 - [x] Prompt registry 支持版本化 prompt
 - [x] execution 更新为 `[x]` 并记录 commit
 
-完成 commit：`待提交`
+完成 commit：`85223ef`
 
 验证记录：
 
