@@ -1,0 +1,43 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.py[cod]
+*.egg-info/
+.env
+.env.*
+!.env.example
+
+# Local runtime data
+data/
+artifacts/
+uploads/
+logs/
+*.db
+*.sqlite
+*.sqlite3
+
+# Local infrastructure
+docker/volumes/
+postgres-data/
+redis-data/
+minio-data/
+
+# IDE and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Coverage and reports
+.coverage
+coverage.xml
+htmlcov/
+reports/
+
+# Local model and provider caches
+.cache/
+models/
+*.safetensors
+*.gguf
