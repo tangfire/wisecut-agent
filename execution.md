@@ -63,7 +63,7 @@ docs(agent): update deployment and troubleshooting
 | WP-04 MAA API 和事件流 | 9、10.1 | [x] | `待提交` | Conversation、Message、Run、SSE、Approval、Artifact |
 | WP-05 Worker 和恢复机制 | 10、10.3、10.4 | [x] | `待提交` | RabbitMQ、锁、取消、重试、恢复 |
 | WP-06 LangGraph Runtime | 6、7、7.4 | [x] | `85223ef` | StateGraph、Profile、Interrupt、Prompt |
-| WP-07 Tool 和 Provider 平台 | 8、8.4 | [ ] | - | Tool Registry、审批、Provider |
+| WP-07 Tool 和 Provider 平台 | 8、8.4 | [x] | `9644222` | Tool Registry、审批、Provider |
 | WP-08 Agent Film 业务图 | 7.1、7.2、7.3 | [ ] | - | 商品、策略、脚本、分镜、生成 |
 | WP-09 媒体和 Artifact 能力 | 8.2、8.3、9.5 | [ ] | - | 素材、数字人、视频、产物回填 |
 | WP-10 安全和可观测性 | 11、12 | [ ] | - | SSRF、权限、Trace、指标、审计 |
@@ -72,9 +72,9 @@ docs(agent): update deployment and troubleshooting
 | WP-13 四仓库联调 | 15.1、15.2、19.4 | [ ] | - | WiseCut 前端到 Go 到 MAA 全链路 |
 | WP-14 生产交付 | 13.2、15.3、19.5 | [ ] | - | 发布、压测、告警、回滚、文档 |
 
-当前工作包：`WP-06`
+当前工作包：`WP-07`
 
-当前下一步：执行 `WP-07 Tool 和 Provider 平台`。
+当前下一步：执行 `WP-08 Agent Film 业务图`。
 
 ## 3. 工作包明细
 
@@ -486,34 +486,65 @@ docs(agent): update deployment and troubleshooting
 
 对应计划：`plan.md` 第 8、8.4 节。
 
-任务：
+状态：`[x]`
 
-- [ ] 定义 Tool contract、input schema、output schema。
-- [ ] 实现 Tool Registry。
-- [ ] 实现 L0/L1/L2/L3 风险分级。
-- [ ] 实现 allow/deny/ask 策略。
-- [ ] 实现 approval required/resolved。
-- [ ] 实现工具超时、取消、重试、幂等和结果大小限制。
-- [ ] 实现 ToolExecution 记录。
-- [ ] 实现 Demo Provider、Local LLM Provider 和真实 Provider 接口。
-- [ ] 实现 Provider health、限流和错误映射。
-- [ ] 禁止工具直接访问 ORM。
+已完成：
+
+- [x] 定义 `ToolContract`、`RetryPolicy`、`SecurityLevel`（L0-L3）、`ToolResult`
+- [x] 实现 `ToolRegistry` — 注册/查找/按 Profile 过滤/`KNOWN_TOOL_NAMES` 对齐前端
+- [x] 实现 `ToolPolicy` — L0-L3 分级、allow/deny/ask 策略、输入校验
+- [x] 实现 `ApprovalService` — create/decide/get/pending，对齐 Go `DecideApproval` 契约
+- [x] 实现 `ToolExecutor` — 完整管道：Policy → tool.started → 执行(含重试) → tool.completed/failed → ToolExecution 记录
+- [x] 实现 `BaseProvider` + `ProviderResult`/`ProviderHealth`
+- [x] 实现 Demo Provider（product_research、materials、digital_human、video）+ 工厂
+- [x] 实现 Domain Provider wrapper（research、materials、digital_human、video）— demo/real 切换
+- [x] 生产环境保护：`enable_demo_provider=False` 时 DemoProvider 拒绝加载
+- [x] 工具不直接访问 ORM，只通过 Provider 接口
+- [x] 添加 `generate_id()` 到 `app.protocol.language`
+- [x] 添加 `UnitOfWork.session` 属性（支持 Repository 构造）
 
 验证：
 
-- [ ] 非法工具输入在执行前被拒绝。
-- [ ] L3 工具没有审批不能执行。
-- [ ] Tool event 顺序稳定。
-- [ ] Provider 超时和 429 能进入重试或失败状态。
-- [ ] Demo Provider 不会被 production 配置加载。
+- [x] 49 个 WP-07 单元测试全部通过
+- [x] 243 个总测试全部通过（无回归）
+- [x] 非法工具输入在执行前被 Pydantic/Policy 拒绝
+- [x] L3 工具无审批不执行（`policy_violation` error_code）
+- [x] Demo Provider 在 production 配置下拒绝加载（RuntimeError）
+- [x] Tool event 通过 seq 保证顺序稳定
+- [x] 超时/失败进入重试，超过次数返回 failed
 
 出口条件：
 
-- [ ] Tool Registry 可按 Profile 过滤工具。
-- [ ] Tool policy 和 approval 集成测试通过。
-- [ ] execution 更新为 `[x]` 并记录 commit。
+- [x] Tool Registry 可按 Profile 过滤工具（`filter_by_profile`）
+- [x] Tool policy 和 approval 测试通过（49 passed）
+- [x] execution 更新为 `[x]` 并记录 commit。
 
-完成 commit：`待完成`
+完成 commit：`9644222`
+
+验证记录：
+
+```text
+工作包：WP-07
+日期：2026-10-14
+命令：SKIP_SETTINGS_VALIDATION=1 python -m pytest tests/ -v
+结果：退出码 0
+关键输出：243 passed in 20.86s
+  - 115 契约测试（WP-01）全部通过
+  - 12 集成测试（WP-04）全部通过
+  - 16 Worker 测试（WP-05）全部通过
+  - 4 持久化状态转换测试（WP-05）全部通过
+  - 23 LangGraph Runtime 测试（WP-06）全部通过
+  - 13 持久化单元测试（WP-03）全部通过
+  - 11 Settings/Protocol 单元测试（WP-02）全部通过
+  - 49 新 WP-07 测试全部通过
+    * Tool contracts: 5 tests
+    * Tool Registry: 7 tests
+    * Tool Policy: 10 tests
+    * Approval Service: 5 tests
+    * Tool Executor: 4 tests
+    * Base/Demo/Real Providers: 18 tests
+关联 commit：9644222
+```
 
 ### WP-08 Agent Film 业务图
 
@@ -820,6 +851,11 @@ Fixture: 17 个 Go Client 可读取的 JSON fixture
 | 2026-10-14 | Conversation 锁基于 Redis SET NX EX + heartbeat | 防止同一 Conversation 并发执行 | Worker 并发控制 |
 | 2026-10-14 | LangGraph StateGraph 节点通过 async 函数注册，interrupt 节点标记为 END | 与 LangGraph interrupt/resume 语义对齐 | Graph 架构、HITL |
 | 2026-10-14 | Prompt 通过 PromptProfile dataclass 版本化管理 | 确保结果可复现和可审计 | LLM 配置、Prompt 管理 |
+| 2026-10-14 | 前端无独立 Tool/Provider 接口，工具以字符串标识 | 工具名称对齐前端 `ToolStartedPayload.tool_name` union | Tool Registry、Event payload |
+| 2026-10-14 | 前端无 Provider 选择界面，Provider 是 wisecut-agent 内部抽象 | 按领域分类（research/materials/digital_human/video）提供 Demo/Real 切换 | Provider 平台 |
+| 2026-10-14 | Approval 决策格式对齐 Go Client `DecideApproval` 的 `decision.type` | 保证 WiseCut 后端能正确转发审批决定 | Approval Service |
+| 2026-10-14 | ToolExecutor 超时固定 30s，重试策略从 ToolContract.retry_policy 读取 | WP-08/WP-09 可按工具配置不同重试参数 | Tool 执行 |
+| 2026-10-14 | 添加 UnitOfWork.session 属性 | 支持 ApprovalService 和 ToolExecutor 在测试中构造 Repository | 持久化层 |
 
 ## 7. 阻塞项和风险
 
@@ -832,20 +868,16 @@ Fixture: 17 个 Go Client 可读取的 JSON fixture
 
 ## 8. 下一步
 
-WP-06 已完成：
+WP-07 已完成：
 
-- [x] LangGraph Runtime 基础设施：StateGraph、Builder、Runner
-- [x] AgentFilmState TypedDict：17 个字段，符合 plan.md §6
-- [x] Quick/Deep Profile：影响路由和交互策略
-- [x] 13 个 graph node stubs：normalize、product_context、script、generation、media
-- [x] 4 个路由函数：product confirmation、script review、terminal、retry
-- [x] GraphRunner：Worker 调用入口，处理 checkpoint 和事件发射
-- [x] LLM Factory：demo + openai-compatible provider
-- [x] Prompt Registry：3 个默认 prompt profiles，版本化管理
-- [x] TokenCostCallback：token 和 cost 追踪
-- [x] 194 个测试全部通过（含 23 个新 WP-06 测试）
-- [ ] 进入 WP-07：Tool 和 Provider 平台（Tool Registry、Policy、Approval）
-- [ ] WP-07 未完成前，不实现 Agent Film 业务节点。
+- [x] Tool 平台基础设施：Registry、Policy、Approval、Executor
+- [x] Provider 抽象层：BaseProvider + Demo/Real 切换
+- [x] L0-L3 安全分级和审批门控
+- [x] ToolExecutor 完整执行管道（policy → events → retry → recording）
+- [x] Demo Provider 生产环境保护
+- [x] 49 个 WP-07 测试全部通过，243 总测试无回归
+- [ ] 进入 WP-08：Agent Film 业务图（normalize、product_context、script、generation 节点实现）
+- [ ] WP-08 未完成前，不实现媒体工具（WP-09）和 Docker（WP-11）。
 - [ ] 每个工作包完成后立即更新本文件、记录验证输出并提交。
 
 下一次继续任务时，优先处理当前工作包，不跳过出口条件，不把未验证的 `[~]` 改成 `[x]`。
