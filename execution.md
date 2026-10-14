@@ -56,7 +56,7 @@ docs(agent): update deployment and troubleshooting
 
 | 工作包 | plan.md 章节 | 状态 | Commit | 备注 |
 | --- | --- | --- | --- | --- |
-| WP-00 仓库和执行基线 | 1、16、17、20 | [~] | 未提交 | 已创建仓库、README、plan、execution |
+| WP-00 仓库和执行基线 | 1、16、17、20 | [x] | `b338d72` | 文档基线已提交，待推送后开始 WP-01 |
 | WP-01 MAA 协议冻结 | 2、2.1、9 | [ ] | - | OpenAPI、Schema、Fixture、契约测试 |
 | WP-02 基础工程和配置 | 3.2、13 | [ ] | - | Python、FastAPI、配置、日志、健康检查 |
 | WP-03 持久化和迁移 | 5、5.3、5.4 | [ ] | - | PostgreSQL、Checkpoint、Outbox |
@@ -72,9 +72,9 @@ docs(agent): update deployment and troubleshooting
 | WP-13 四仓库联调 | 15.1、15.2、19.4 | [ ] | - | WiseCut 前端到 Go 到 MAA 全链路 |
 | WP-14 生产交付 | 13.2、15.3、19.5 | [ ] | - | 发布、压测、告警、回滚、文档 |
 
-当前工作包：`WP-00`
+当前工作包：`WP-01`
 
-当前下一步：完成 `WP-01 MAA 协议冻结`。
+当前下一步：执行 `WP-01 MAA 协议冻结`。
 
 ## 3. 工作包明细
 
@@ -98,17 +98,17 @@ docs(agent): update deployment and troubleshooting
 
 - [x] 检查项目目录和 Python 包命名是否确定：仓库为 `wisecut-agent`，应用包按 `app/` 规划。
 - [x] 确定远端 GitHub 私人仓库名称：`https://github.com/tangfire/wisecut-agent.git`。
-- [ ] 提交初始项目基线。
-- [ ] 在初始 commit 中包含 `README.md`、`plan.md`、`execution.md` 和 `.gitignore`。
-- [ ] 在初始 commit 中包含 `AGENTS.md`、`docs/DEVELOPMENT.md`、`docs/MAA_CONTRACT_SOURCE_MAP.md`、`docs/WISECUT_INTEGRATION.md` 和 `docs/DELEGATION_PROMPT.md`。
+- [x] 提交初始项目基线。
+- [x] 在初始 commit 中包含 `README.md`、`plan.md`、`execution.md` 和 `.gitignore`。
+- [x] 在初始 commit 中包含 `AGENTS.md`、`docs/DEVELOPMENT.md`、`docs/MAA_CONTRACT_SOURCE_MAP.md`、`docs/WISECUT_INTEGRATION.md` 和 `docs/DELEGATION_PROMPT.md`。
 
 出口条件：
 
-- [ ] 初始 commit 已创建。
-- [ ] 工作区干净。
-- [ ] execution 总体进度中的 WP-00 更新为 `[x]`。
+- [x] 初始 commit 已创建。
+- [x] 工作区干净。
+- [x] execution 总体进度中的 WP-00 更新为 `[x]`。
 
-完成 commit：`待完成`
+完成 commit：`b338d72`；本次状态同步由后续 docs commit 记录。
 
 ### WP-01 MAA 协议冻结
 
@@ -606,7 +606,7 @@ docs(agent): update deployment and troubleshooting
 
 | 日期 | 工作包 | Commit | 主要变更 | 验证结果 |
 | --- | --- | --- | --- | --- |
-| 2026-10-14 | WP-00 | 待提交 | 创建项目基线、最终计划、执行同步和智能体交接文档 | `git diff --check` 通过；准备推送到 GitHub |
+| 2026-10-14 | WP-00 | `b338d72` | 创建并提交项目基线、最终计划、执行同步和智能体交接文档 | `git diff --check` 通过；GitHub 推送进行中 |
 
 ## 5. 验证记录
 
@@ -617,8 +617,8 @@ docs(agent): update deployment and troubleshooting
 ```text
 git diff --cached --check: 通过
 plan.md / execution.md / README.md / AGENTS.md / docs/*: 已创建
-项目 Git: 已初始化，当前无远端、无 commit
-GitHub 远端：已确定为 `origin https://github.com/tangfire/wisecut-agent.git`
+项目 Git: 初始 commit `b338d72`
+GitHub 远端：`origin https://github.com/tangfire/wisecut-agent.git`
 ```
 
 ### 5.2 后续验证模板
@@ -651,7 +651,7 @@ GitHub 远端：已确定为 `origin https://github.com/tangfire/wisecut-agent.g
 
 进入编码前：
 
-- [ ] 确认初始仓库文件并提交 WP-00。
+- [x] 确认初始仓库文件并提交 WP-00。
 - [ ] 执行 WP-01，先冻结 MAA wire contract 和 fixtures。
 - [ ] WP-01 未完成前，不开始编写 Agent Film 业务节点。
 - [ ] 每个工作包完成后立即更新本文件、记录验证输出并提交。
