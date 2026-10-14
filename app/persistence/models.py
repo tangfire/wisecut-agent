@@ -21,12 +21,12 @@ from sqlalchemy import (
     Enum as SAEnum,
     ForeignKey,
     Integer,
+    JSON,
     String,
     Text,
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -87,7 +87,7 @@ class Conversation(Base):
     status: Mapped[ConversationStatus] = mapped_column(
         SAEnum(ConversationStatus), nullable=False, default=ConversationStatus.CREATED
     )
-    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -150,7 +150,7 @@ class Message(Base):
     role: Mapped[str] = mapped_column(String(20), nullable=False)  # user | assistant | system
     type: Mapped[str | None] = mapped_column(String(32), nullable=True)  # message | guidance | interaction_response
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     request_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -176,7 +176,7 @@ class Event(Base):
     )
     seq: Mapped[int] = mapped_column(Integer, nullable=False)
     event_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    payload_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    payload_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     visible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     source: Mapped[str] = mapped_column(String(32), nullable=False, default=EventSource.MAA)
     idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
@@ -205,8 +205,8 @@ class Interaction(Base):
     )
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     intent: Mapped[str] = mapped_column(String(64), nullable=False)
-    payload_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
-    answer_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    payload_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    answer_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -226,11 +226,11 @@ class Approval(Base):
         String(64), ForeignKey("run.id", ondelete="CASCADE"), nullable=False, index=True
     )
     tool_name: Mapped[str] = mapped_column(String(64), nullable=False)
-    arguments_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    arguments_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     status: Mapped[ApprovalStatus] = mapped_column(
         SAEnum(ApprovalStatus), nullable=False, default=ApprovalStatus.PENDING
     )
-    decision_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    decision_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
@@ -253,8 +253,8 @@ class Artifact(Base):
     )
     artifact_type: Mapped[str] = mapped_column(String(64), nullable=False)
     uri: Mapped[str | None] = mapped_column(Text, nullable=True)
-    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
-    payload_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    payload_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     status: Mapped[ArtifactStatus] = mapped_column(
         SAEnum(ArtifactStatus), nullable=False, default=ArtifactStatus.PENDING
     )
@@ -275,11 +275,11 @@ class ToolExecution(Base):
         String(64), ForeignKey("run.id", ondelete="CASCADE"), nullable=False, index=True
     )
     tool_name: Mapped[str] = mapped_column(String(64), nullable=False)
-    input_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
-    output_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    input_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    output_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     attempt: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    error_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    error_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -295,8 +295,8 @@ class Checkpoint(Base):
     thread_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     checkpoint_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     parent_checkpoint_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    state_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
-    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    state_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -309,7 +309,7 @@ class OutboxEvent(Base):
     aggregate_type: Mapped[str] = mapped_column(String(32), nullable=False)
     aggregate_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    payload_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    payload_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     attempt: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -327,7 +327,7 @@ class AuditLog(Base):
     action: Mapped[str] = mapped_column(String(64), nullable=False)
     resource_type: Mapped[str] = mapped_column(String(32), nullable=False)
     resource_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    payload_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    payload_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

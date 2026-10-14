@@ -78,12 +78,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.middleware("http")
     async def request_context_middleware(request: Request, call_next):
-        """Inject trace_id and request_id into request state and logs."""
+        """Inject trace_id, request_id, and MAA headers into request state and logs."""
         trace_id = request.headers.get("X-Trace-ID", str(__import__("uuid").uuid4()))
         request_id = request.headers.get("X-Request-ID", str(__import__("uuid").uuid4()))
         request.state.trace_id = trace_id
         request.state.request_id = request_id
-        RequestContext.set(trace_id=trace_id, request_id=request_id)
+        # MAA protocol headers (set by Go Client via setAgentFilmHeaders)
+        request.state.maa_user_id = request.headers.get("X-User-ID", "")
+        request.state.maa_project_id = request.headers.get("X-Project-ID", "")
+        request.state.maa_conversation_id = request.headers.get("X-Conversation-ID", "")
+        request.state.maa_run_id = request.headers.get("X-Run-ID", "")
+        RequestContext.set(
+            trace_id=trace_id,
+            request_id=request_id,
+            user_id=request.state.maa_user_id,
+            project_id=request.state.maa_project_id,
+        )
 
         start = time.perf_counter()
         try:
@@ -98,6 +108,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     "path": request.url.path,
                     "status_code": response.status_code,
                     "duration_ms": round(duration_ms, 2),
+                    "maa_user_id": request.state.maa_user_id,
+                    "maa_project_id": request.state.maa_project_id,
                 },
             )
             response.headers["X-Request-ID"] = request_id

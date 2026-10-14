@@ -70,9 +70,8 @@ async def unit_of_work() -> AsyncGenerator[UnitOfWork, None]:
     session = factory()
     uow = UnitOfWork(session)
     try:
-        async with session:
-            yield uow
-            await session.commit()
+        yield uow
+        await session.commit()
     except Exception:
         await session.rollback()
         raise

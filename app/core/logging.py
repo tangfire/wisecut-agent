@@ -13,7 +13,7 @@ import time
 import uuid
 from typing import Any
 
-from app.settings import Settings
+from app.settings import Environment, Settings
 
 
 # Sensitive field names that must never appear in logs.
@@ -144,15 +144,10 @@ def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)
 
 
-    @property
-    def is_demo_env(self) -> bool:
-        return self.app_env == Environment.LOCAL_DEMO
-
-
 class RequestContext:
     """Thread-local request context for trace_id and request_id."""
 
-    _local = {}
+    _local: dict[str, Any] = {}
 
     @classmethod
     def set(cls, **kwargs: Any) -> None:

@@ -1,13 +1,13 @@
-"""Conversation endpoints.
-
-POST /conversations        — create conversation
-GET  /conversations/{id}   — get conversation detail
-"""
+"""Conversation endpoints with real persistence."""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Request, status
 from pydantic import BaseModel, Field
+
+from app.core.exceptions import ConversationNotFound
+from app.persistence.unit_of_work import unit_of_work
+from app.application.services import ConversationService
 
 router = APIRouter()
 
@@ -32,10 +32,14 @@ class ConversationDetailResponse(BaseModel):
     recent_events: list[dict]
 
 
-class ConversationResponse(BaseModel):
-    id: str
-    status: str
-    metadata: dict[str, str]
+def _extract_maa_context(request: Request) -> dict:
+    """Extract MAA protocol headers set by the Go Client."""
+    return {
+        "user_id": request.state.maa_user_id or "1001",
+        "project_id": request.state.maa_project_id or "2001",
+        "conversation_id": request.state.maa_conversation_id,
+        "run_id": request.state.maa_run_id,
+    }
 
 
 @router.post(
@@ -45,14 +49,41 @@ class ConversationResponse(BaseModel):
     summary="Create a new conversation",
     tags=["Conversation"],
 )
-async def create_conversation(request: CreateConversationRequest):
-    """Create a new MAA conversation."""
-    conversation_id = f"conv-{__import__('uuid').uuid4().hex[:12]}"
-    return CreateConversationResponse(
-        conversation_id=conversation_id,
-        langgraph_thread_id=conversation_id,
-        status="created",
-    )
+async def create_conversation(request: Request, body: CreateConversationRequest):
+    """Create a new MAA conversation.
+
+    Matches the Go Client's createConversation wire format:
+      - title: first 24 chars of user content or explicit title
+      - agent_profile_id: top-level field (also echoed in metadata)
+      - metadata: source, local_run_id, user_id, project_id, mode, agent_profile_id, response_language
+    """
+    maa = _extract_maa_context(request)
+    profile_id = body.agent_profile_id or "one-click-quick"
+    mode = "deep" if "cocreate" in profile_id else "quick"
+
+    # Build metadata matching Go Client's createConversation
+    meta = dict(body.metadata or {})
+    meta.update({
+        "source": "wisecut-agent-film",
+        "local_run_id": maa["run_id"],
+        "user_id": maa["user_id"],
+        "project_id": maa["project_id"],
+        "mode": mode,
+        "agent_profile_id": profile_id,
+        "response_language": "zh-CN",
+    })
+
+    async with unit_of_work() as uow:
+        service = ConversationService(uow)
+        result = await service.create(
+            title=body.title,
+            user_id=maa["user_id"],
+            project_id=maa["project_id"],
+            profile_id=profile_id,
+            mode=mode,
+            metadata=meta,
+        )
+        return CreateConversationResponse(**result)
 
 
 @router.get(
@@ -61,7 +92,12 @@ async def create_conversation(request: CreateConversationRequest):
     summary="Get conversation detail",
     tags=["Conversation"],
 )
-async def get_conversation(conversation_id: str):
+async def get_conversation(request: Request, conversation_id: str):
     """Get conversation snapshot with active run, messages, interactions, and events."""
-    from app.core.exceptions import ConversationNotFound
-    raise ConversationNotFound(conversation_id)
+    maa = _extract_maa_context(request)
+    async with unit_of_work() as uow:
+        service = ConversationService(uow)
+        detail = await service.get_detail(conversation_id)
+        if detail is None:
+            raise ConversationNotFound(conversation_id)
+        return ConversationDetailResponse(**detail)

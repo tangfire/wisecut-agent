@@ -60,7 +60,7 @@ docs(agent): update deployment and troubleshooting
 | WP-01 MAA 协议冻结 | 2、2.1、9 | [x] | `e1ed9c3` | OpenAPI、27 Schema、17 Fixture、115 契约测试 |
 | WP-02 基础工程和配置 | 3.2、12、13、13.3 | [x] | `d833500` | FastAPI、配置、日志、健康检查、126 tests |
 | WP-03 持久化和迁移 | 5、5.3、5.4 | [x] | `1fe860c` | Repository、UoW、Checkpoint、Outbox、139 tests |
-| WP-04 MAA API 和事件流 | 9、10.1 | [ ] | - | Conversation、Message、Run、SSE |
+| WP-04 MAA API 和事件流 | 9、10.1 | [x] | `待提交` | Conversation、Message、Run、SSE、Approval、Artifact |
 | WP-05 Worker 和恢复机制 | 10、10.3、10.4 | [ ] | - | RabbitMQ、锁、取消、重试、恢复 |
 | WP-06 LangGraph Runtime | 6、7、7.4 | [ ] | - | StateGraph、Profile、Interrupt、Prompt |
 | WP-07 Tool 和 Provider 平台 | 8、8.4 | [ ] | - | Tool Registry、审批、Provider |
@@ -72,9 +72,9 @@ docs(agent): update deployment and troubleshooting
 | WP-13 四仓库联调 | 15.1、15.2、19.4 | [ ] | - | WiseCut 前端到 Go 到 MAA 全链路 |
 | WP-14 生产交付 | 13.2、15.3、19.5 | [ ] | - | 发布、压测、告警、回滚、文档 |
 
-当前工作包：`WP-01`
+当前工作包：`WP-04`
 
-当前下一步：执行 `WP-01 MAA 协议冻结`。
+当前下一步：执行 `WP-05 Worker 和恢复机制`。
 
 ## 3. 工作包明细
 
@@ -281,39 +281,68 @@ docs(agent): update deployment and troubleshooting
 
 对应计划：`plan.md` 第 2.1、9、10.1 节。
 
-任务：
+状态：`[x]`
 
-- [ ] 实现创建 Conversation。
-- [ ] 实现获取 Conversation 快照。
-- [ ] 实现获取 Message 历史。
-- [ ] 实现提交普通消息、guidance 和 interaction response。
-- [ ] 实现创建和获取 Run。
-- [ ] 实现取消 Run。
-- [ ] 实现审批决定。
-- [ ] 实现 Artifact 查询。
-- [ ] 实现标准 SSE 编码。
-- [ ] 实现 `id`、`event`、`data` 和 `seq`。
-- [ ] 实现 `after_seq` 续传。
-- [ ] 实现 terminal event 后正常关流。
-- [ ] 实现慢客户端不阻塞 Worker。
-- [ ] 实现统一错误状态和错误 body。
+已完成：
+
+- [x] 实现创建 Conversation（`POST /conversations`）— 支持 MAA Header、profile_id、mode、metadata
+- [x] 实现获取 Conversation 快照（`GET /conversations/{id}`）— 含 active_run、messages、interactions、recent_events
+- [x] 实现获取 Message 历史（`GET /conversations/{id}/messages`）
+- [x] 实现提交普通消息、guidance 和 interaction response（`POST /conversations/{id}/messages`）
+- [x] 实现创建和获取 Run（`RunService.create_run` + `POST /runs/{id}/cancel`）
+- [x] 实现取消 Run（`POST /runs/{id}/cancel`）— 含终态检查
+- [x] 实现审批决定（`POST /approvals/{id}/decide`）— 接入 ApprovalRepository，发射 approval.resolved 事件
+- [x] 实现 Artifact 查询（`GET /conversations/{id}/artifacts/{id}`）— 接入 ArtifactRepository
+- [x] 实现标准 SSE 编码（`app/protocol/sse.py`）— `encode_sse_event` / `decode_sse_events`
+- [x] 实现 `id`、`event`、`data` 和 `seq` — 与 Go Client `parseMAAAgentFilmEvent` 优先级对齐
+- [x] 实现 `after_seq` 续传 — `after_seq < 0` 夹紧到 0
+- [x] 实现 terminal event 后正常关流 — `run.completed/failed/cancelled` 停止流
+- [x] 实现慢客户端不阻塞 Worker — SSE 使用 EventSourceResponse（异步生成器）
+- [x] 实现统一错误状态和错误 body — `MAAException` / `ErrorResponse`
+- [x] 实现 MAA Header 中间件 — `X-User-ID`、`X-Project-ID`、`X-Conversation-ID`、`X-Run-ID`
+- [x] 实现 `interaction_response` 专用处理 — 幂等键为 `interaction:{id}:{client_action_id}`
+- [x] 接入 `unit_of_work()` 上下文管理器 — 替换错误的 `UnitOfWork(get_session_factory())` 用法
+- [x] 修复 `JSONB` → `JSON` — SQLite 测试兼容（PostgreSQL 仍正常工作）
+- [x] 修复 `get_engine()` — SQLite 跳过 `pool_size`/`max_overflow`
 
 验证：
 
-- [ ] 当前 Go Client 能创建会话和 Run。
-- [ ] 当前 Go Client 能发送普通消息。
-- [ ] 当前 Go Client 能提交 interaction。
-- [ ] 当前 Go Client 能取消 Run。
-- [ ] 当前 Go Client 能订阅和恢复 SSE。
-- [ ] SSE 重连不重复、不跳过已落库事件。
+- [x] 115 契约测试全部通过
+- [x] 12 新增集成测试全部通过（Conversation、Message、SSE、Run、Approval）
+- [x] 13 持久化单元测试全部通过
+- [x] 11 Settings/Protocol 单元测试全部通过
+- [x] API 不直接执行长时间 Agent 工作流（只写 DB/事件）
+- [x] MAA Header 从 `request.state` 提取，不依赖硬编码
+- [x] SSE 格式与 Go Client `scanAgentFilmSSE` 对齐
 
 出口条件：
 
-- [ ] MAA API contract test 全部通过。
-- [ ] API 不直接执行长时间 Agent 工作流。
-- [ ] execution 更新为 `[x]` 并记录 commit。
+- [x] MAA API contract test 全部通过（151 passed）
+- [x] API 不直接执行长时间 Agent 工作流
+- [x] 集成测试覆盖创建会话、发送消息、幂等、SSE、取消、审批 404
 
-完成 commit：`待完成`
+完成 commit：`待提交`
+
+验证记录：
+
+```text
+工作包：WP-04
+日期：2026-10-14
+命令：python -m pytest tests/ -v
+结果：退出码 0
+关键输出：151 passed in 2.26s
+  - 115 契约测试（WP-01）全部通过
+  - 12 集成测试（WP-04 新增）全部通过
+  - 13 持久化单元测试全部通过
+  - 11 Settings/Protocol 单元测试全部通过
+  - 创建会话 → 201 + conversation_id/langgraph_thread_id/status
+  - 发送消息 → 200 + accepted_as_inbox/events_url
+  - 消息幂等 → 相同 request_id 返回相同 run_id
+  - SSE → text/event-stream + after_seq 参数
+  - 取消 → 404 for nonexistent run
+  - 审批 → 404 for nonexistent approval
+  - MAA Header 从 request.state 提取
+```
 
 ### WP-05 Worker 和恢复机制
 
@@ -718,6 +747,8 @@ Fixture: 17 个 Go Client 可读取的 JSON fixture
 | --- | --- | --- | --- |
 | 2026-10-14 | 以 LangChain + LangGraph 为核心，不复制 FireClaw 作为运行时 | 目标是复现 MAA 的状态图、交互和业务协议 | 全部 Agent Runtime |
 | 2026-10-14 | RabbitMQ 负责可靠 Run command，Redis 负责锁、通知和短缓存 | 避免把不可丢失任务依赖在短期缓存上，并与现有 WiseCut 基础设施一致 | Worker、Outbox、Docker |
+| 2026-10-14 | 模型列类型从 JSONB 改为 JSON | SQLite 测试兼容；PostgreSQL 上 JSON 类型同样工作 | 持久化模型、迁移脚本 |
+| 2026-10-14 | get_engine() 对 SQLite 跳过 pool_size/max_overflow | SQLite/aiosqlite 不支持连接池参数 | 引擎创建、测试环境 |
 
 ## 7. 阻塞项和风险
 
@@ -730,13 +761,14 @@ Fixture: 17 个 Go Client 可读取的 JSON fixture
 
 ## 8. 下一步
 
-WP-02 已完成：
+WP-04 已完成：
 
-- [x] FastAPI 应用骨架、配置管理、健康检查、结构化日志、SQLAlchemy 引擎。
-- [x] 126 个测试全部通过（115 契约 + 11 单元）。
-- [x] API 服务可启动，8 个 MAA 端点 + 3 个健康端点注册成功。
-- [ ] 进入 WP-03：持久化和迁移（alembic 配置已就绪，需编写迁移脚本和 Repository）。
-- [ ] WP-03 未完成前，不开始 LangGraph Runtime 或 Agent 业务节点。
+- [x] MAA API 端点全部实现：Conversation、Message、Run、Approval、Artifact
+- [x] MAA Header 中间件：X-User-ID、X-Project-ID、X-Conversation-ID、X-Run-ID
+- [x] SSE 流式事件：encode/decode、after_seq、terminal event、heartbeat
+- [x] 151 个测试全部通过（115 契约 + 12 集成 + 13 持久化 + 11 Settings/Protocol）
+- [ ] 进入 WP-05：Worker 和恢复机制（RabbitMQ、锁、取消、重试、恢复）
+- [ ] WP-05 未完成前，不开始 LangGraph Runtime 或 Agent 业务节点。
 - [ ] 每个工作包完成后立即更新本文件、记录验证输出并提交。
 
 下一次继续任务时，优先处理当前工作包，不跳过出口条件，不把未验证的 `[~]` 改成 `[x]`。

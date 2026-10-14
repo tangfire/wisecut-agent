@@ -16,14 +16,21 @@ _async_session_factory: sessionmaker[AsyncSession] | None = None
 def get_engine() -> AsyncEngine:
     global _engine
     if _engine is None:
-        _engine = create_async_engine(
-            settings.database_url,
-            pool_size=settings.db_pool_size,
-            max_overflow=settings.db_max_overflow,
-            pool_pre_ping=True,
-            pool_recycle=3600,
-            echo=settings.debug,
-        )
+        # SQLite (including aiosqlite) does not support pool_size/max_overflow.
+        if settings.database_url.startswith("sqlite"):
+            _engine = create_async_engine(
+                settings.database_url,
+                echo=settings.debug,
+            )
+        else:
+            _engine = create_async_engine(
+                settings.database_url,
+                pool_size=settings.db_pool_size,
+                max_overflow=settings.db_max_overflow,
+                pool_pre_ping=True,
+                pool_recycle=3600,
+                echo=settings.debug,
+            )
     return _engine
 
 
