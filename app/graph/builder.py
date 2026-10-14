@@ -249,72 +249,85 @@ class AgentFilmGraphBuilder:
 
 
 # ---------------------------------------------------------------------------
-# Default node implementations (WP-06 stubs)
+# Default node implementations (WP-08: real business logic)
 # ---------------------------------------------------------------------------
 
 
 async def normalize_input(state: AgentFilmState) -> dict[str, Any]:
     """Validate and normalize user input.
 
-    WP-08: implement actual normalization logic.
+    Delegates to domain logic:
+      - normalize_start_input from app.domain.agent_film
     """
-    return {"user_request": state.get("user_request", "").strip()}
+    from app.graph.nodes.normalize import normalize_input as _normalize
+    return await _normalize(state)
 
 
 async def collect_product_context(state: AgentFilmState) -> dict[str, Any]:
     """Extract product context from link and files.
 
-    WP-08: implement actual extraction.
+    Delegates to domain logic:
+      - extract_product_context from app.domain.agent_film
     """
-    return {"product_context": state.get("product_context", {})}
+    from app.graph.nodes.product_context import collect_product_context as _collect
+    return await _collect(state)
 
 
 async def request_product_context_review(state: AgentFilmState) -> dict[str, Any]:
-    """Emit interaction.requested and pause for user input.
+    """Emit interaction.requested for product context confirmation.
 
-    WP-08: implement actual interaction emission.
+    Returns a confirm_extracted_product_context interaction payload.
     """
-    return {"pending_interaction": {"intent": "confirm_extracted_product_context"}}
+    from app.graph.nodes.product_context import request_product_context_review as _review
+    return await _review(state)
 
 
 async def generate_creative_strategy(state: AgentFilmState) -> dict[str, Any]:
-    """Generate marketing creative strategy via LLM.
+    """Generate marketing creative strategy.
 
-    WP-08: implement actual LLM call.
+    Delegates to domain logic:
+      - generate_creative_strategy from app.domain.agent_film
     """
-    return {"creative_strategy": {}}
+    from app.graph.nodes.script import generate_creative_strategy_node as _gen
+    return await _gen(state)
 
 
 async def generate_script(state: AgentFilmState) -> dict[str, Any]:
-    """Generate video script via LLM.
+    """Generate video script.
 
-    WP-08: implement actual LLM call.
+    Delegates to domain logic:
+      - generate_script from app.domain.agent_film
     """
-    return {"script": {}}
+    from app.graph.nodes.script import generate_script_node as _gen
+    return await _gen(state)
 
 
 async def request_storyboard_review(state: AgentFilmState) -> dict[str, Any]:
     """Emit storyboard review interaction and pause.
 
-    WP-08: implement actual interaction emission.
+    Returns a review_storyboard_script interaction payload.
     """
-    return {"pending_interaction": {"intent": "review_storyboard_script"}}
+    from app.graph.nodes.script import request_storyboard_review_node as _review
+    return await _review(state)
 
 
 async def prepare_generation(state: AgentFilmState) -> dict[str, Any]:
     """Prepare materials and settings for generation.
 
-    WP-08/WP-09: implement actual preparation.
+    Delegates to domain logic:
+      - prepare_generation from app.domain.agent_film
     """
-    return {}
+    from app.graph.nodes.generation import prepare_generation_node as _prepare
+    return await _prepare(state)
 
 
 async def request_generation_approval(state: AgentFilmState) -> dict[str, Any]:
-    """Emit approval.required and pause for user approval.
+    """Emit approval.required for generation start.
 
-    WP-08: implement actual approval emission.
+    Returns a confirm_generation_start approval payload with cost breakdown.
     """
-    return {"pending_approval": {"tool_name": "render_video", "arguments": {}}}
+    from app.graph.nodes.generation import request_generation_approval_node as _approve
+    return await _approve(state)
 
 
 async def collect_materials(state: AgentFilmState) -> dict[str, Any]:
@@ -338,7 +351,7 @@ async def render_video(state: AgentFilmState) -> dict[str, Any]:
 
     WP-09: implement actual video rendering.
     """
-    return {"render_job": {}}
+    return {"render_job": state.get("render_job", {})}
 
 
 async def validate_delivery(state: AgentFilmState) -> dict[str, Any]:

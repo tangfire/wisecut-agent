@@ -1,35 +1,32 @@
-"""Product context node: extracts product information from link and files."""
+"""Product context node: extracts product information from link and files.
 
+Uses domain logic from app.domain.agent_film for actual extraction.
+"""
 from __future__ import annotations
 
+from app.domain.agent_film import extract_product_context, build_product_context_interaction
 from app.graph.state import AgentFilmState
 
 
 async def collect_product_context(state: AgentFilmState) -> dict[str, Any]:
     """Extract product context from product_link and input_files.
 
-    WP-08: replace stub with actual LLM/tool-based extraction.
+    Uses ProductResearchProvider to extract:
+      - product_name, product_description, target_audience
+      - selling_points, images
+
+    For quick mode, fills defaults if extraction fails.
     """
-    # Stub: pass through existing product_context or return empty
-    return {"product_context": state.get("product_context", {})}
+    return await extract_product_context(state)
 
 
 async def request_product_context_review(state: AgentFilmState) -> dict[str, Any]:
-    """Emit interaction.requested and pause for user input.
+    """Emit interaction.requested for product context confirmation.
 
     Returns an interaction payload that the Worker will convert to an
-    `interaction.requested` event.
+    `interaction.requested` event with the confirm_extracted_product_context card.
     """
-    from app.graph.profiles import get_profile
-    profile = get_profile(state.get("profile_id", "one-click-quick"))
-
-    interaction = {
-        "intent": "confirm_extracted_product_context",
-        "cards": [],
-        "actions": ["approve", "modify", "deny"],
-        "status": "pending",
-    }
-
+    interaction = build_product_context_interaction(state)
     return {
         "pending_interaction": interaction,
     }

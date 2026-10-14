@@ -1,36 +1,37 @@
-"""Generation nodes: prepare generation and request approval."""
+"""Generation nodes: prepare generation and request approval.
 
+Uses domain logic from app.domain.agent_film for actual preparation.
+"""
 from __future__ import annotations
 
+from app.domain.agent_film import prepare_generation, build_generation_approval
 from app.graph.state import AgentFilmState
 
 
-async def prepare_generation(state: AgentFilmState) -> dict[str, Any]:
+async def prepare_generation_node(state: AgentFilmState) -> dict[str, Any]:
     """Prepare materials and settings for generation.
 
-    WP-08/WP-09: replace stub with actual preparation logic.
+    - Searches materials via MaterialProvider
+    - Calculates estimated cost (billing, points)
+    - Sets up render_job configuration
+
+    Returns state update with materials and render_job.
     """
-    return {}
+    return await prepare_generation(state)
 
 
-async def request_generation_approval(state: AgentFilmState) -> dict[str, Any]:
-    """Emit approval.required and pause for user approval.
+async def request_generation_approval_node(state: AgentFilmState) -> dict[str, Any]:
+    """Emit approval.required for generation start.
 
     Returns an approval payload that the Worker will convert to an
-    `approval.required` event.
-    """
-    from app.graph.profiles import get_profile
-    profile = get_profile(state.get("profile_id", "one-click-quick"))
+    `approval.required` event with the confirm_generation_start card.
 
-    approval = {
-        "tool_name": "render_video",
-        "arguments": {
-            "aspect_ratio": profile.default_aspect_ratio,
-            "duration": profile.default_duration,
-            "language": state.get("language", "zh-CN"),
-        },
-        "status": "pending",
-    }
+    The payload includes:
+      - cost breakdown (duration, points, digital human)
+      - auto_approve_countdown_seconds (10s)
+      - product_name, shot_count
+    """
+    approval = build_generation_approval(state)
     return {
         "pending_approval": approval,
     }
