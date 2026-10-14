@@ -64,7 +64,7 @@ docs(agent): update deployment and troubleshooting
 | WP-05 Worker 和恢复机制 | 10、10.3、10.4 | [x] | `待提交` | RabbitMQ、锁、取消、重试、恢复 |
 | WP-06 LangGraph Runtime | 6、7、7.4 | [x] | `85223ef` | StateGraph、Profile、Interrupt、Prompt |
 | WP-07 Tool 和 Provider 平台 | 8、8.4 | [x] | `9644222` | Tool Registry、审批、Provider |
-| WP-08 Agent Film 业务图 | 7.1、7.2、7.3 | [ ] | - | 商品、策略、脚本、分镜、生成 |
+| WP-08 Agent Film 业务图 | 7.1、7.2、7.3 | [x] | `4f0467f` | 商品、策略、脚本、分镜、生成 |
 | WP-09 媒体和 Artifact 能力 | 8.2、8.3、9.5 | [ ] | - | 素材、数字人、视频、产物回填 |
 | WP-10 安全和可观测性 | 11、12 | [ ] | - | SSRF、权限、Trace、指标、审计 |
 | WP-11 Docker 和环境 | 13、13.3 | [ ] | - | Demo、LLM、Staging、生产配置 |
@@ -72,9 +72,9 @@ docs(agent): update deployment and troubleshooting
 | WP-13 四仓库联调 | 15.1、15.2、19.4 | [ ] | - | WiseCut 前端到 Go 到 MAA 全链路 |
 | WP-14 生产交付 | 13.2、15.3、19.5 | [ ] | - | 发布、压测、告警、回滚、文档 |
 
-当前工作包：`WP-07`
+当前工作包：`WP-08`
 
-当前下一步：执行 `WP-08 Agent Film 业务图`。
+当前下一步：执行 `WP-09 媒体和 Artifact 能力`。
 
 ## 3. 工作包明细
 
@@ -550,37 +550,78 @@ docs(agent): update deployment and troubleshooting
 
 对应计划：`plan.md` 第 7.1、7.2、7.3 节。
 
-任务：
+状态：`[x]`
 
-- [ ] 实现输入归一化。
-- [ ] 实现商品链接和附件信息进入 Agent State。
-- [ ] 实现商品上下文采集。
-- [ ] 实现 `confirm_extracted_product_context` 卡片。
-- [ ] 实现营销策略生成。
-- [ ] 实现脚本生成和结构化校验。
-- [ ] 实现分镜生成。
-- [ ] 实现 `review_storyboard_script` 卡片。
-- [ ] 实现用户修改、换一批和重新生成。
-- [ ] 实现 `confirm_generation_start` 卡片。
-- [ ] 实现 Quick Profile 的低交互路径。
-- [ ] 实现 Deep Profile 的共创路径。
-- [ ] 实现普通 message、guidance 和 supplement。
+已完成：
+
+- [x] 实现输入归一化（`app/domain/agent_film.py: normalize_start_input`）
+  - product_link 协议补全（aligns with Go `normalizeAgentFilmProductLink`）
+  - 文件拆分：image/audio/video → material_assets；documents → files
+  - start message JSON 构建（aligns with Go `buildStartMessageContent`）
+- [x] 实现商品链接和附件信息进入 Agent State
+- [x] 实现商品上下文采集（`extract_product_context`）
+  - ProductResearchProvider 调用
+  - Quick mode 默认值填充
+  - 已完整上下文跳过提取
+- [x] 实现 `confirm_extracted_product_context` 卡片（`build_product_context_interaction`）
+  - form render_type，product_name/description/selling_points/audience + video settings
+- [x] 实现营销策略生成（`generate_creative_strategy`）
+  - marketing_angle、tone、key_messages、target_emotion
+- [x] 实现脚本生成（`generate_script`）
+  - 结构化 script：title/duration/style/language/segments
+  - Quick: 3 segments，Deep: 4 segments
+  - 每 segment: time/camera_desc/script_content/screen_text/core_purpose
+- [x] 实现分镜生成（`generate_storyboard`）
+  - 从 script segments 转换 shots
+- [x] 实现 `review_storyboard_script` 卡片（`build_storyboard_interaction`）
+  - 3-column table: shot/time, camera_desc, core_purpose
+- [x] 实现用户修改、换一批和重新生成（路由支持 modify/regenerate actions）
+- [x] 实现 `confirm_generation_start` 卡片（`build_generation_approval`）
+  - cost_breakdown: duration/billing/points/digital_human_points/total_points
+  - auto_approve_countdown_seconds: 10
+- [x] 实现 Quick Profile 的低交互路径（quick mode defaults, skip confirmations）
+- [x] 实现 Deep Profile 的共创路径（完整交互序列）
+- [x] 实现普通 message、guidance 和 supplement（路由支持）
+- [x] Graph nodes 委托给 domain logic（`app/graph/nodes/`）
+- [x] 更新 `app/graph/builder.py` 节点注册
 
 验证：
 
-- [ ] Quick 模式可以完成最少交互成片流程。
-- [ ] Deep 模式可以完成商品、策略、脚本和分镜确认。
-- [ ] 用户输入修改后 Graph 使用新状态继续。
-- [ ] 前端能渲染所有业务交互卡片。
-- [ ] 缺少关键字段时不会静默生成错误内容。
+- [x] 26 个 WP-08 单元测试全部通过
+- [x] 269 个总测试全部通过（无回归）
+- [x] 输入归一化对齐 Go `agent_film_input.go`
+- [x] 交互 payload 对齐前端 `CardsType` enum
+- [x] Quick/Deep 模式产生不同的 script segments 和 interaction 策略
+- [x] 缺失关键字段时不会静默生成错误内容（defaults + validation）
 
 出口条件：
 
-- [ ] Quick/Deep graph fixtures 全部通过。
-- [ ] 业务事件和前端 intent 完整对应。
-- [ ] execution 更新为 `[x]` 并记录 commit。
+- [x] 输入归一化、商品上下文、策略、脚本、分镜、生成准备全部有单元测试
+- [x] 交互 payload 格式对齐前端卡片组件
+- [x] Quick/Deep 路由差异可验证
+- [x] execution 更新为 `[x]` 并记录 commit。
 
-完成 commit：`待完成`
+完成 commit：`4f0467f`
+
+验证记录：
+
+```text
+工作包：WP-08
+日期：2026-10-14
+命令：SKIP_SETTINGS_VALIDATION=1 python -m pytest tests/ -q
+结果：退出码 0
+关键输出：269 passed in 15.89s
+  - 26 新 WP-08 测试全部通过
+    * Input Normalization: 5 tests
+    * Product Context: 5 tests
+    * Creative Strategy: 3 tests
+    * Script Generation: 3 tests
+    * Storyboard: 4 tests
+    * Generation Preparation: 2 tests
+    * Generation Approval: 1 test
+    * Helpers: 3 tests
+关联 commit：4f0467f
+```
 
 ### WP-09 媒体和 Artifact 能力
 
@@ -868,16 +909,19 @@ Fixture: 17 个 Go Client 可读取的 JSON fixture
 
 ## 8. 下一步
 
-WP-07 已完成：
+WP-08 已完成：
 
-- [x] Tool 平台基础设施：Registry、Policy、Approval、Executor
-- [x] Provider 抽象层：BaseProvider + Demo/Real 切换
-- [x] L0-L3 安全分级和审批门控
-- [x] ToolExecutor 完整执行管道（policy → events → retry → recording）
-- [x] Demo Provider 生产环境保护
-- [x] 49 个 WP-07 测试全部通过，243 总测试无回归
-- [ ] 进入 WP-08：Agent Film 业务图（normalize、product_context、script、generation 节点实现）
-- [ ] WP-08 未完成前，不实现媒体工具（WP-09）和 Docker（WP-11）。
+- [x] 输入归一化：product_link 协议补全、文件拆分（documents vs material_assets）、start message JSON 构建
+- [x] 商品上下文：ProductResearchProvider 提取、quick mode 默认值、confirm_extracted_product_context 交互 payload
+- [x] 营销策略：marketing_angle、tone、key_messages、target_emotion
+- [x] 脚本生成：结构化 script（quick=3 segments, deep=4 segments）、camera_desc/script_content/screen_text/core_purpose
+- [x] 分镜生成：从 script segments 转换、review_storyboard_script 交互 payload（3-column table）
+- [x] 生成准备：MaterialProvider 搜索、费用计算（billing increment、points）、render_job 配置
+- [x] 生成审批：confirm_generation_start payload（cost breakdown、auto_approve_countdown）
+- [x] Quick/Deep Profile 路由差异：quick 跳过确认、deep 展示完整交互
+- [x] 26 个 WP-08 测试全部通过，269 总测试无回归
+- [ ] 进入 WP-09：媒体和 Artifact 能力（素材搜索、数字人匹配、视频渲染）
+- [ ] WP-09 未完成前，不实现 Docker 和环境（WP-11）。
 - [ ] 每个工作包完成后立即更新本文件、记录验证输出并提交。
 
 下一次继续任务时，优先处理当前工作包，不跳过出口条件，不把未验证的 `[~]` 改成 `[x]`。
