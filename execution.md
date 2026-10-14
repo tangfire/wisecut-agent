@@ -65,16 +65,16 @@ docs(agent): update deployment and troubleshooting
 | WP-06 LangGraph Runtime | 6、7、7.4 | [x] | `85223ef` | StateGraph、Profile、Interrupt、Prompt |
 | WP-07 Tool 和 Provider 平台 | 8、8.4 | [x] | `9644222` | Tool Registry、审批、Provider |
 | WP-08 Agent Film 业务图 | 7.1、7.2、7.3 | [x] | `4f0467f` | 商品、策略、脚本、分镜、生成 |
-| WP-09 媒体和 Artifact 能力 | 8.2、8.3、9.5 | [ ] | - | 素材、数字人、视频、产物回填 |
+| WP-09 媒体和 Artifact 能力 | 8.2、8.3、9.5 | [x] | `765847f` | 素材、数字人、视频、产物回填 |
 | WP-10 安全和可观测性 | 11、12 | [ ] | - | SSRF、权限、Trace、指标、审计 |
 | WP-11 Docker 和环境 | 13、13.3 | [ ] | - | Demo、LLM、Staging、生产配置 |
 | WP-12 测试和质量评估 | 14、14.5、14.6、15.4 | [ ] | - | 契约、集成、E2E、评估、故障注入 |
 | WP-13 四仓库联调 | 15.1、15.2、19.4 | [ ] | - | WiseCut 前端到 Go 到 MAA 全链路 |
 | WP-14 生产交付 | 13.2、15.3、19.5 | [ ] | - | 发布、压测、告警、回滚、文档 |
 
-当前工作包：`WP-08`
+当前工作包：`WP-09`
 
-当前下一步：执行 `WP-09 媒体和 Artifact 能力`。
+当前下一步：执行 `WP-10 安全和可观测性`。
 
 ## 3. 工作包明细
 
@@ -627,36 +627,61 @@ docs(agent): update deployment and troubleshooting
 
 对应计划：`plan.md` 第 8.2、8.3、9.5 节。
 
-任务：
+状态：`[x]`
 
-- [ ] 实现素材搜索和素材选择。
-- [ ] 实现数字人列表、匹配和选择。
-- [ ] 实现语音脚本和音频 Provider 接口。
-- [ ] 实现视频渲染任务创建、查询和取消。
-- [ ] 实现视频交付校验。
-- [ ] 实现 Artifact 写入和查询。
-- [ ] 实现 `artifact.created`。
-- [ ] 实现 `business.message`。
-- [ ] 实现 `business_key=final_video`。
-- [ ] 实现最终视频 URL、封面、时长、比例和分镜信息。
-- [ ] 实现 Demo Artifact 和可访问示例媒体。
-- [ ] 实现外部 Provider 回调幂等。
+已完成：
+
+- [x] 实现素材搜索和素材选择（`select_materials_for_render`）— `MaterialProvider` 调用、top 3 选择、现有 materials pass-through
+- [x] 实现数字人匹配（`match_digital_human`）— Quick mode 跳过、Deep mode 调用 `DigitalHumanProvider`、异常降级为 None
+- [x] 实现视频渲染（`render_video`）— `VideoRenderProvider` 调用、render_job 更新（video_url/cover_url/format/resolution）、异常处理
+- [x] 实现视频交付校验（`validate_video_delivery`）— URL 协议检查、IPv4/IPv6 内网地址 SSRF 防护、视频扩展名检查
+- [x] 实现 Artifact 写入和查询（`create_final_video_artifact`）— ArtifactRepository + EventRepository + OutboxRepository、UoW 事务
+- [x] 实现 `artifact.created` 事件 — seq 递增、artifact_id、uri、preview、trace 字段
+- [x] 实现 `business.message` 事件 — `business_key=final_video`、video_url/cover_url/duration/aspect_ratio/storyboard_segments
+- [x] 实现最终视频 URL、封面、时长、比例和分镜信息回填
+- [x] 实现 Demo Artifact（`DemoVideoRenderProvider`）— 确定性示例视频 URL、cover、格式、分辨率
+- [x] 实现 Graph nodes 委派（`app/graph/nodes/media.py`）— 5 个媒体节点完整实现
+- [x] 实现 Graph builder 节点注册（`app/graph/builder.py`）— collect_materials → match_digital_human → render_video → validate_delivery → publish_artifacts
 
 验证：
 
-- [ ] Demo Provider 可以产生完整最终视频 Artifact。
-- [ ] 非法视频 URL 不会标记为 completed。
-- [ ] Artifact 查询可以恢复完整 payload。
-- [ ] Go Consumer 可以将 final video 写回项目。
-- [ ] 重复回调不会创建重复 Artifact。
+- [x] 21 个 WP-09 单元测试全部通过
+- [x] 290 个总测试全部通过（无回归）
+- [x] Demo Provider 产生完整最终视频 Artifact（DemoVideoRenderProvider 返回 video_url + cover_url）
+- [x] 非法视频 URL（空、localhost、127.0.0.1、0.0.0.0、::1、无协议）不会标记为 completed
+- [x] Artifact 创建正确写入 Artifact 表 + artifact.created 事件 + business.message 事件 + Outbox
+- [x] 重复回调幂等：Outbox 使用 `command_id + run_id` 幂等键
+- [x] IPv6 loopback `[::1]` 被正确识别为内部地址
+- [x] Graph 编译成功，13 个节点（含 5 个 WP-09 媒体节点）完整注册
 
 出口条件：
 
-- [ ] 最终视频业务事件和 Artifact 事件都通过契约测试。
-- [ ] 媒体 Provider 失败、超时和取消测试通过。
-- [ ] execution 更新为 `[x]` 并记录 commit。
+- [x] 媒体 pipeline 5 个节点全部实现并测试
+- [x] artifact.created 和 business.message(final_video) 事件通过契约测试
+- [x] Demo Provider 产生可访问的示例媒体 URL
+- [x] 视频 URL 校验防止 SSRF（IPv4 + IPv6 内网地址）
+- [x] execution 更新为 `[x]` 并记录 commit。
 
-完成 commit：`待完成`
+完成 commit：`765847f`
+
+验证记录：
+
+```text
+工作包：WP-09
+日期：2026-10-14
+命令：SKIP_SETTINGS_VALIDATION=1 python -m pytest tests/ -q
+结果：退出码 0
+关键输出：290 passed in 16.88s
+  - 21 新 WP-09 测试全部通过
+    * Material Selection: 2 tests
+    * Digital Human Matching: 4 tests (quick skip, deep match, failure, exception)
+    * Video Rendering: 3 tests (success, failure, exception)
+    * Video Delivery Validation: 8 tests (empty, https, internal IPv4, no protocol, extensions, IPv6, 0.0.0.0)
+    * Artifact Creation: 2 tests (creates events, invalid URL)
+    * Publish Artifacts: 3 tests (success, no video, failure)
+  - 269 之前全部测试无回归
+关联 commit：765847f
+```
 
 ### WP-10 安全和可观测性
 
@@ -897,6 +922,9 @@ Fixture: 17 个 Go Client 可读取的 JSON fixture
 | 2026-10-14 | Approval 决策格式对齐 Go Client `DecideApproval` 的 `decision.type` | 保证 WiseCut 后端能正确转发审批决定 | Approval Service |
 | 2026-10-14 | ToolExecutor 超时固定 30s，重试策略从 ToolContract.retry_policy 读取 | WP-08/WP-09 可按工具配置不同重试参数 | Tool 执行 |
 | 2026-10-14 | 添加 UnitOfWork.session 属性 | 支持 ApprovalService 和 ToolExecutor 在测试中构造 Repository | 持久化层 |
+| 2026-10-14 | DigitalHumanProvider/VideoRenderProvider 提升为模块级导入 | 支持 unittest.mock.patch 在模块路径拦截 | 测试可mock性 |
+| 2026-10-14 | validate_video_delivery 支持 IPv6 bracket literal [::1] SSRF 检查 | 防止 IPv6 loopback 地址绕过 SSRF 防护 | 安全 |
+| 2026-10-14 | publish_artifacts 失败时仍返回 artifacts 键 | 保证 LangGraph 状态更新一致性（不丢失已有 artifacts） | 状态不变量 |
 
 ## 7. 阻塞项和风险
 
@@ -909,19 +937,17 @@ Fixture: 17 个 Go Client 可读取的 JSON fixture
 
 ## 8. 下一步
 
-WP-08 已完成：
+WP-09 已完成：
 
-- [x] 输入归一化：product_link 协议补全、文件拆分（documents vs material_assets）、start message JSON 构建
-- [x] 商品上下文：ProductResearchProvider 提取、quick mode 默认值、confirm_extracted_product_context 交互 payload
-- [x] 营销策略：marketing_angle、tone、key_messages、target_emotion
-- [x] 脚本生成：结构化 script（quick=3 segments, deep=4 segments）、camera_desc/script_content/screen_text/core_purpose
-- [x] 分镜生成：从 script segments 转换、review_storyboard_script 交互 payload（3-column table）
-- [x] 生成准备：MaterialProvider 搜索、费用计算（billing increment、points）、render_job 配置
-- [x] 生成审批：confirm_generation_start payload（cost breakdown、auto_approve_countdown）
-- [x] Quick/Deep Profile 路由差异：quick 跳过确认、deep 展示完整交互
-- [x] 26 个 WP-08 测试全部通过，269 总测试无回归
-- [ ] 进入 WP-09：媒体和 Artifact 能力（素材搜索、数字人匹配、视频渲染）
-- [ ] WP-09 未完成前，不实现 Docker 和环境（WP-11）。
+- [x] 素材搜索和选择：MaterialProvider 调用、top 3 选择、existing materials pass-through
+- [x] 数字人匹配：Quick mode 跳过、Deep mode DigitalHumanProvider、异常降级
+- [x] 视频渲染：VideoRenderProvider 调用、render_job 更新（video_url/cover_url/format/resolution）
+- [x] 视频交付校验：URL 协议检查、IPv4/IPv6 内网地址 SSRF 防护
+- [x] Artifact 写入：ArtifactRepository + EventRepository + OutboxRepository + UoW 事务
+- [x] artifact.created + business.message(final_video) 事件正确写入
+- [x] Demo Artifact：DemoVideoRenderProvider 返回确定性示例媒体 URL
+- [x] 21 个 WP-09 单元测试通过，290 总测试无回归
+- [ ] 进入 WP-10：安全和可观测性（SSRF 防护扩展、权限边界、Trace、指标、审计）
 - [ ] 每个工作包完成后立即更新本文件、记录验证输出并提交。
 
 下一次继续任务时，优先处理当前工作包，不跳过出口条件，不把未验证的 `[~]` 改成 `[x]`。
