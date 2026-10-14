@@ -15,8 +15,6 @@ import logging
 
 import redis.asyncio as aioredis
 
-from app.settings import settings
-
 logger = logging.getLogger(__name__)
 
 _CANCEL_PREFIX = "maa:cancel:"

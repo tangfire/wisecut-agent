@@ -1,4 +1,5 @@
 """Tools package: registry, contracts, policy, approval, and executor."""
+from app.tools.approval import ApprovalService
 from app.tools.contracts import (
     ApprovalRequirement,
     RetryPolicy,
@@ -6,15 +7,14 @@ from app.tools.contracts import (
     ToolContract,
     ToolResult,
 )
+from app.tools.executor import ToolExecutor
+from app.tools.policy import PolicyViolation, ToolPolicy
 from app.tools.registry import (
     KNOWN_TOOL_NAMES,
     ToolRegistry,
     get_registry,
     register_default_tools,
 )
-from app.tools.policy import PolicyViolation, ToolPolicy
-from app.tools.approval import ApprovalService
-from app.tools.executor import ToolExecutor
 
 __all__ = [
     # Contracts

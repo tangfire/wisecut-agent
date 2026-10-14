@@ -12,8 +12,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from app.settings import settings
-
 logger = logging.getLogger(__name__)
 
 # Default limits (can be overridden by settings)

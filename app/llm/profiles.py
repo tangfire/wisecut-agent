@@ -16,8 +16,7 @@ WP-06 provides the registry structure.  WP-08 fills in actual prompts.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True)

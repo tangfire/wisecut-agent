@@ -43,19 +43,18 @@ WP-06 implements:
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Coroutine, Optional
+from collections.abc import Callable, Coroutine
+from typing import Any
 
-from langgraph.graph import END, StateGraph
 from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.graph import END, StateGraph
 
-from app.graph.state import AgentFilmState
-from app.graph.profiles import get_profile
 from app.graph.routing import (
+    is_terminal,
     needs_product_confirmation,
     review_script_or_storyboard,
-    is_terminal,
-    should_retry,
 )
+from app.graph.state import AgentFilmState
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +83,7 @@ class AgentFilmGraphBuilder:
 
     def __init__(
         self,
-        checkpointer: Optional[BaseCheckpointSaver] = None,
+        checkpointer: BaseCheckpointSaver | None = None,
         default_profile_id: str = "one-click-quick",
     ) -> None:
         self._checkpointer = checkpointer
@@ -102,7 +101,7 @@ class AgentFilmGraphBuilder:
         name: str,
         func: NodeFunc,
         interrupt: bool = False,
-    ) -> "AgentFilmGraphBuilder":
+    ) -> AgentFilmGraphBuilder:
         """Register a graph node.
 
         Args:
@@ -147,7 +146,7 @@ class AgentFilmGraphBuilder:
     # Edge registration
     # ------------------------------------------------------------------
 
-    def add_edge(self, start: str, end: str) -> "AgentFilmGraphBuilder":
+    def add_edge(self, start: str, end: str) -> AgentFilmGraphBuilder:
         """Add a direct edge from start to end."""
         self._graph.add_edge(start, end)
         return self
@@ -157,7 +156,7 @@ class AgentFilmGraphBuilder:
         source: str,
         router: Callable[[AgentFilmState], str],
         route_map: dict[str, str],
-    ) -> "AgentFilmGraphBuilder":
+    ) -> AgentFilmGraphBuilder:
         """Add conditional edges from source based on router function."""
         self._graph.add_conditional_edges(source, router, route_map)
         return self
@@ -381,7 +380,7 @@ async def publish_artifacts(state: AgentFilmState) -> dict[str, Any]:
 
 
 def build_default_graph(
-    checkpointer: Optional[BaseCheckpointSaver] = None,
+    checkpointer: BaseCheckpointSaver | None = None,
     profile_id: str = "one-click-quick",
 ) -> Any:
     """Build the default Agent Film graph with stub nodes.

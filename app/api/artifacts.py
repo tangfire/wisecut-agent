@@ -5,7 +5,7 @@ GET /conversations/{conversation_id}/artifacts/{artifact_id}  — get artifact d
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Request
 
 from app.core.exceptions import ArtifactNotFound
 from app.persistence.unit_of_work import unit_of_work

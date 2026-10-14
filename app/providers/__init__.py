@@ -8,9 +8,9 @@ from app.providers.demo import (
     create_demo_provider,
     is_demo_provider_enabled,
 )
-from app.providers.research import ProductResearchProvider
-from app.providers.materials import MaterialProvider
 from app.providers.digital_human import DigitalHumanProvider
+from app.providers.materials import MaterialProvider
+from app.providers.research import ProductResearchProvider
 from app.providers.video import VideoRenderProvider
 
 __all__ = [

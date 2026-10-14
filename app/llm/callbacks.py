@@ -6,7 +6,7 @@ Used to track LLM usage metrics per run for observability and cost control.
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from langchain_core.callbacks import BaseCallbackHandler
 

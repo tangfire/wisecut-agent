@@ -15,7 +15,6 @@ from __future__ import annotations
 import os
 import sys
 from enum import Enum
-from pathlib import Path
 
 from pydantic import Field, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -100,8 +99,8 @@ class Settings(BaseSettings):
     # RabbitMQ
     # ------------------------------------------------------------------
     rabbitmq_url: str = Field(
-        default="amqp://wisecut:wisecut@localhost:15675/",
-        description="RabbitMQ connection URL.",
+        default="amqp://wisecut:wisecut@localhost:15676/",
+        description="RabbitMQ AMQP connection URL (15676, not management 15675).",
     )
     rabbitmq_run_queue: str = Field(
         default="maa.run.commands",
@@ -267,7 +266,7 @@ class Settings(BaseSettings):
         return value
 
     @model_validator(mode="after")
-    def validate_production_constraints(self) -> "Settings":
+    def validate_production_constraints(self) -> Settings:
         """Enforce production-specific constraints."""
         if self.app_env == Environment.PRODUCTION:
             if self.enable_demo_provider:

@@ -20,7 +20,8 @@ import json
 import logging
 import threading
 import time
-from typing import Any, Callable, Coroutine, Optional
+from collections.abc import Callable, Coroutine
+from typing import Any
 
 import pika
 from pika.adapters.blocking_connection import BlockingChannel
@@ -53,16 +54,16 @@ class RunWorker:
 
     def __init__(
         self,
-        run_handler: Optional[RunHandler] = None,
+        run_handler: RunHandler | None = None,
         prefetch_count: int = 1,
     ) -> None:
         self._handler = run_handler or self._default_handler
         self._prefetch = prefetch_count
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
-        self._connection: Optional[pika.BlockingConnection] = None
-        self._channel: Optional[BlockingChannel] = None
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._connection: pika.BlockingConnection | None = None
+        self._channel: BlockingChannel | None = None
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -201,7 +202,7 @@ class RunWorker:
         try:
             self._loop.run_until_complete(result_future)
             ch.basic_ack(delivery_tag=delivery_tag)
-        except _RetryMessage as retry_exc:
+        except _RetryMessage:
             # Publish to retry queue and ack the original
             from app.infra.messaging import QUEUE_RETRY
             ch.basic_publish(
@@ -337,7 +338,7 @@ async def _update_run_status(run_id: str, status: str, error: str | None = None)
         await session.commit()
 
 
-def start_worker_thread(run_handler: Optional[RunHandler] = None) -> RunWorker:
+def start_worker_thread(run_handler: RunHandler | None = None) -> RunWorker:
     """Create and start the worker thread.
 
     Call this from the application lifespan to enable background processing.

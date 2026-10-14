@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Optional
 
 import redis.asyncio as aioredis
 
@@ -21,7 +20,7 @@ class RateLimiter:
 
     def __init__(self, redis_url: str | None = None) -> None:
         self._redis_url = redis_url or settings.redis_url
-        self._redis: Optional[aioredis.Redis] = None
+        self._redis: aioredis.Redis | None = None
 
     async def _get_redis(self) -> aioredis.Redis:
         if self._redis is None:
@@ -83,7 +82,7 @@ class RateLimiter:
 
 
 # Global rate limiter instance
-_rate_limiter: Optional[RateLimiter] = None
+_rate_limiter: RateLimiter | None = None
 
 
 def get_rate_limiter() -> RateLimiter:

@@ -20,12 +20,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from typing import Any, Coroutine
+from collections.abc import Coroutine
+from typing import Any
 
-from app.tools.contracts import SecurityLevel, ToolContract, ToolResult
+from app.persistence.unit_of_work import unit_of_work
+from app.tools.contracts import SecurityLevel, ToolResult
 from app.tools.policy import PolicyViolation, ToolPolicy
 from app.tools.registry import get_registry
-from app.persistence.unit_of_work import unit_of_work
 
 logger = logging.getLogger(__name__)
 
@@ -198,7 +199,7 @@ class ToolExecutor:
                     output=output,
                     attempt=attempt,
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 last_error = "Tool execution timed out"
                 last_error_code = "timeout"
                 logger.warning("Tool attempt %d timed out", attempt)
@@ -231,8 +232,8 @@ class ToolExecutor:
         input_data: dict[str, Any],
     ) -> str:
         """Create a ToolExecution record."""
-        from app.protocol.language import generate_id
         from app.persistence.repositories import ToolExecutionRepository
+        from app.protocol.language import generate_id
 
         tool_execution_id = generate_id("tool")
         async with unit_of_work() as uow:

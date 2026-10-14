@@ -39,8 +39,9 @@ async def decide_approval(request: Request, approval_id: str, body: ApprovalDeci
       Body: {"decision": {"action": "approve"|"deny", ...}}
       Response: {"approval": {...}, "event": {...}, "should_resume_runner": true}
     """
-    maa_user_id = request.state.maa_user_id or ""
-    maa_project_id = request.state.maa_project_id or ""
+    # Extract auth context (WP-10 security)
+    _ = request.state.maa_user_id or ""
+    _ = request.state.maa_project_id or ""
 
     async with unit_of_work() as uow:
         approval_repo = uow.approvals

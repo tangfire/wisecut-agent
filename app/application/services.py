@@ -8,20 +8,13 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
+from typing import Any
 from uuid import uuid4
 
 from app.persistence.repositories import (
-    ApprovalRepository,
-    ArtifactRepository,
-    CheckpointRepository,
-    ConversationRepository,
     EventRepository,
-    InteractionRepository,
-    MessageRepository,
-    OutboxRepository,
-    RunRepository,
 )
 from app.persistence.unit_of_work import UnitOfWork
 from app.protocol.sse import encode_sse_event, is_terminal_event
@@ -311,7 +304,7 @@ class MessageService:
                 "action": action,
                 "content": content_obj,
                 "client_action_id": client_action_id,
-                "resolved_at": datetime.now(timezone.utc).isoformat(),
+                "resolved_at": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -331,7 +324,7 @@ class MessageService:
                 "status": "answered",
                 "value": content_obj,
                 "client_action_id": client_action_id,
-                "resolved_at": datetime.now(timezone.utc).isoformat(),
+                "resolved_at": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -394,7 +387,7 @@ class RunService:
                 "conversation_id": conversation_id,
                 "status": "running",
                 "phase": "starting",
-                "started_at": datetime.now(timezone.utc).isoformat(),
+                "started_at": datetime.now(UTC).isoformat(),
             },
         )
 
@@ -434,7 +427,7 @@ class RunService:
             payload={
                 "run_id": run_id,
                 "status": "cancelled",
-                "finished_at": datetime.now(timezone.utc).isoformat(),
+                "finished_at": datetime.now(UTC).isoformat(),
             },
         )
 

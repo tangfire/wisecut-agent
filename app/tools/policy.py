@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from app.tools.contracts import ApprovalRequirement, SecurityLevel, ToolContract, ToolResult
+from app.tools.contracts import SecurityLevel, ToolContract
 from app.tools.registry import get_registry
 
 logger = logging.getLogger(__name__)

@@ -5,9 +5,9 @@ from __future__ import annotations
 from fastapi import APIRouter, Request, status
 from pydantic import BaseModel, Field
 
+from app.application.services import ConversationService
 from app.core.exceptions import ConversationNotFound
 from app.persistence.unit_of_work import unit_of_work
-from app.application.services import ConversationService
 
 router = APIRouter()
 
@@ -34,11 +34,18 @@ class ConversationDetailResponse(BaseModel):
 
 def _extract_maa_context(request: Request) -> dict:
     """Extract MAA protocol headers set by the Go Client."""
+    user_id = getattr(request.state, "maa_user_id", "") or ""
+    project_id = getattr(request.state, "maa_project_id", "") or ""
+    # WP-11: no fixed fallback; generate UUID-based IDs for local dev
+    if not user_id:
+        user_id = f"dev-{__import__('uuid').uuid4().hex[:8]}"
+    if not project_id:
+        project_id = f"dev-{__import__('uuid').uuid4().hex[:8]}"
     return {
-        "user_id": request.state.maa_user_id or "1001",
-        "project_id": request.state.maa_project_id or "2001",
-        "conversation_id": request.state.maa_conversation_id,
-        "run_id": request.state.maa_run_id,
+        "user_id": user_id,
+        "project_id": project_id,
+        "conversation_id": getattr(request.state, "maa_conversation_id", "") or "",
+        "run_id": getattr(request.state, "maa_run_id", "") or "",
     }
 
 
@@ -57,7 +64,7 @@ async def create_conversation(request: Request, body: CreateConversationRequest)
       - agent_profile_id: top-level field (also echoed in metadata)
       - metadata: source, local_run_id, user_id, project_id, mode, agent_profile_id, response_language
     """
-    maa = _extract_maa_context(request)
+    maa_context = _extract_maa_context(request)
     profile_id = body.agent_profile_id or "one-click-quick"
     mode = "deep" if "cocreate" in profile_id else "quick"
 
@@ -65,9 +72,9 @@ async def create_conversation(request: Request, body: CreateConversationRequest)
     meta = dict(body.metadata or {})
     meta.update({
         "source": "wisecut-agent-film",
-        "local_run_id": maa["run_id"],
-        "user_id": maa["user_id"],
-        "project_id": maa["project_id"],
+        "local_run_id": maa_context["run_id"],
+        "user_id": maa_context["user_id"],
+        "project_id": maa_context["project_id"],
         "mode": mode,
         "agent_profile_id": profile_id,
         "response_language": "zh-CN",
@@ -77,8 +84,8 @@ async def create_conversation(request: Request, body: CreateConversationRequest)
         service = ConversationService(uow)
         result = await service.create(
             title=body.title,
-            user_id=maa["user_id"],
-            project_id=maa["project_id"],
+            user_id=maa_context["user_id"],
+            project_id=maa_context["project_id"],
             profile_id=profile_id,
             mode=mode,
             metadata=meta,
@@ -94,7 +101,7 @@ async def create_conversation(request: Request, body: CreateConversationRequest)
 )
 async def get_conversation(request: Request, conversation_id: str):
     """Get conversation snapshot with active run, messages, interactions, and events."""
-    maa = _extract_maa_context(request)
+    _extract_maa_context(request)
     async with unit_of_work() as uow:
         service = ConversationService(uow)
         detail = await service.get_detail(conversation_id)

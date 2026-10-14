@@ -4,6 +4,8 @@ Uses domain logic from app.domain.agent_film for actual normalization.
 """
 from __future__ import annotations
 
+from typing import Any
+
 from app.domain.agent_film import normalize_start_input
 
 

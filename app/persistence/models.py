@@ -8,24 +8,23 @@ Core tables:
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 from typing import Any
-from uuid import UUID
 
 from sqlalchemy import (
+    JSON,
     Boolean,
-    CheckConstraint,
-    Column,
     DateTime,
-    Enum as SAEnum,
     ForeignKey,
     Integer,
-    JSON,
     String,
     Text,
     UniqueConstraint,
     func,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
@@ -95,12 +94,12 @@ class Conversation(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
 
-    runs: Mapped[list["Run"]] = relationship(back_populates="conversation", cascade="all, delete-orphan")
-    messages: Mapped[list["Message"]] = relationship(back_populates="conversation", cascade="all, delete-orphan")
-    events: Mapped[list["Event"]] = relationship(back_populates="conversation", cascade="all, delete-orphan")
-    interactions: Mapped[list["Interaction"]] = relationship(back_populates="conversation", cascade="all, delete-orphan")
-    approvals: Mapped[list["Approval"]] = relationship(back_populates="conversation", cascade="all, delete-orphan")
-    artifacts: Mapped[list["Artifact"]] = relationship(back_populates="conversation", cascade="all, delete-orphan")
+    runs: Mapped[list[Run]] = relationship(back_populates="conversation", cascade="all, delete-orphan")
+    messages: Mapped[list[Message]] = relationship(back_populates="conversation", cascade="all, delete-orphan")
+    events: Mapped[list[Event]] = relationship(back_populates="conversation", cascade="all, delete-orphan")
+    interactions: Mapped[list[Interaction]] = relationship(back_populates="conversation", cascade="all, delete-orphan")
+    approvals: Mapped[list[Approval]] = relationship(back_populates="conversation", cascade="all, delete-orphan")
+    artifacts: Mapped[list[Artifact]] = relationship(back_populates="conversation", cascade="all, delete-orphan")
 
 
 class Run(Base):
@@ -124,13 +123,13 @@ class Run(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    conversation: Mapped["Conversation"] = relationship(back_populates="runs")
-    messages: Mapped[list["Message"]] = relationship(back_populates="run", cascade="all, delete-orphan")
-    events: Mapped[list["Event"]] = relationship(back_populates="run", cascade="all, delete-orphan")
-    interactions: Mapped[list["Interaction"]] = relationship(back_populates="run", cascade="all, delete-orphan")
-    approvals: Mapped[list["Approval"]] = relationship(back_populates="run", cascade="all, delete-orphan")
-    artifacts: Mapped[list["Artifact"]] = relationship(back_populates="run", cascade="all, delete-orphan")
-    tool_executions: Mapped[list["ToolExecution"]] = relationship(back_populates="run", cascade="all, delete-orphan")
+    conversation: Mapped[Conversation] = relationship(back_populates="runs")
+    messages: Mapped[list[Message]] = relationship(back_populates="run", cascade="all, delete-orphan")
+    events: Mapped[list[Event]] = relationship(back_populates="run", cascade="all, delete-orphan")
+    interactions: Mapped[list[Interaction]] = relationship(back_populates="run", cascade="all, delete-orphan")
+    approvals: Mapped[list[Approval]] = relationship(back_populates="run", cascade="all, delete-orphan")
+    artifacts: Mapped[list[Artifact]] = relationship(back_populates="run", cascade="all, delete-orphan")
+    tool_executions: Mapped[list[ToolExecution]] = relationship(back_populates="run", cascade="all, delete-orphan")
 
     __table_args__ = (
         UniqueConstraint("conversation_id", "id", name="uq_run_conversation_id"),
@@ -156,8 +155,8 @@ class Message(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    conversation: Mapped["Conversation"] = relationship(back_populates="messages")
-    run: Mapped["Run | None"] = relationship(back_populates="messages")
+    conversation: Mapped[Conversation] = relationship(back_populates="messages")
+    run: Mapped[Run | None] = relationship(back_populates="messages")
 
     __table_args__ = (
         UniqueConstraint("conversation_id", "request_id", name="uq_message_conversation_request_id"),
@@ -184,8 +183,8 @@ class Event(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    conversation: Mapped["Conversation"] = relationship(back_populates="events")
-    run: Mapped["Run"] = relationship(back_populates="events")
+    conversation: Mapped[Conversation] = relationship(back_populates="events")
+    run: Mapped[Run] = relationship(back_populates="events")
 
     __table_args__ = (
         UniqueConstraint("conversation_id", "run_id", "seq", name="uq_event_conversation_run_seq"),
@@ -211,8 +210,8 @@ class Interaction(Base):
     requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    conversation: Mapped["Conversation"] = relationship(back_populates="interactions")
-    run: Mapped["Run"] = relationship(back_populates="interactions")
+    conversation: Mapped[Conversation] = relationship(back_populates="interactions")
+    run: Mapped[Run] = relationship(back_populates="interactions")
 
 
 class Approval(Base):
@@ -237,8 +236,8 @@ class Approval(Base):
     )
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    conversation: Mapped["Conversation"] = relationship(back_populates="approvals")
-    run: Mapped["Run"] = relationship(back_populates="approvals")
+    conversation: Mapped[Conversation] = relationship(back_populates="approvals")
+    run: Mapped[Run] = relationship(back_populates="approvals")
 
 
 class Artifact(Base):
@@ -262,8 +261,8 @@ class Artifact(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    conversation: Mapped["Conversation"] = relationship(back_populates="artifacts")
-    run: Mapped["Run"] = relationship(back_populates="artifacts")
+    conversation: Mapped[Conversation] = relationship(back_populates="artifacts")
+    run: Mapped[Run] = relationship(back_populates="artifacts")
 
 
 class ToolExecution(Base):
@@ -286,7 +285,7 @@ class ToolExecution(Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
 
-    run: Mapped["Run"] = relationship(back_populates="tool_executions")
+    run: Mapped[Run] = relationship(back_populates="tool_executions")
 
 
 class Checkpoint(Base):

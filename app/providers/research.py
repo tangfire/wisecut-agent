@@ -11,7 +11,6 @@ from typing import Any
 
 from app.providers.base import BaseProvider, ProviderHealth, ProviderResult
 from app.providers.demo import DemoProductResearchProvider, is_demo_provider_enabled
-from app.settings import settings
 
 logger = __name__
 

@@ -16,11 +16,11 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse
 
 from app.core.exceptions import MAAException
-from app.settings import Settings
 from app.core.logging import RequestContext, get_logger, setup_logging
+from app.settings import Settings
 
 logger = get_logger(__name__)
 
@@ -43,13 +43,14 @@ async def lifespan(app: FastAPI):
         },
     )
 
-    # Start background worker (WP-05)
+    # Start background worker (WP-05/WP-11)
     worker: Any = None
     if settings.enable_worker:
         try:
+            from app.graph.runner import GraphRunner
             from app.worker.run_worker import start_worker_thread
-            worker = start_worker_thread()
-            logger.info("Background worker started")
+            worker = start_worker_thread(run_handler=GraphRunner().execute_run)
+            logger.info("Background worker started with GraphRunner")
         except Exception as exc:
             logger.warning("Failed to start worker", extra={"error": str(exc)})
 
@@ -183,7 +184,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             response.headers["X-Request-ID"] = request_id
             response.headers["X-Trace-ID"] = trace_id
             return response
-        except Exception as exc:
+        except Exception:
             duration_ms = (time.perf_counter() - start) * 1000
             logger.exception(
                 f"{request.method} {request.url.path} 500",
@@ -242,6 +243,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         # Database check
         try:
             from sqlalchemy import text
+
             from app.persistence.engine import get_engine
             engine = get_engine()
             async with engine.connect() as conn:
@@ -295,7 +297,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return collector.to_dict()
 
     # ---- MAA API routers (stubs for WP-01 contract) ----
-    from app.api import conversations, messages, runs, approvals, artifacts
+    from app.api import approvals, artifacts, conversations, messages, runs
 
     app.include_router(conversations.router, prefix="/conversations", tags=["Conversation"])
     app.include_router(messages.router, prefix="", tags=["Message"])

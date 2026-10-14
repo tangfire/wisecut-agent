@@ -5,9 +5,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Request, status
 from sse_starlette import EventSourceResponse
 
-from app.core.exceptions import RunNotFound
-from app.persistence.unit_of_work import unit_of_work
 from app.application.services import EventService, RunService
+from app.persistence.unit_of_work import unit_of_work
 from app.protocol.sse import encode_sse_event
 
 router = APIRouter()
@@ -38,7 +37,7 @@ async def stream_events(request: Request, run_id: str):
     live = request.query_params.get("live", "true").lower() == "true"
     after_seq = max(0, after_seq)
 
-    maa = _extract_maa_context(request)
+    _ = _extract_maa_context(request)
 
     # Verify run exists (404 check before streaming)
     async with unit_of_work() as uow:
@@ -78,7 +77,7 @@ async def stream_events(request: Request, run_id: str):
 @router.post("/runs/{run_id}/cancel", status_code=status.HTTP_200_OK, summary="Cancel a run", tags=["Run"])
 async def cancel_run(request: Request, run_id: str):
     """Request cancellation of the given run."""
-    maa = _extract_maa_context(request)
+    _ = _extract_maa_context(request)
     async with unit_of_work() as uow:
         service = RunService(uow)
         result = await service.cancel_run(run_id)

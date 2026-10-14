@@ -6,11 +6,12 @@ All methods are async and use the async session from the Unit of Work.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Sequence
-from uuid import UUID, uuid4
+from collections.abc import Sequence
+from datetime import UTC, datetime
+from typing import Any
+from uuid import uuid4
 
-from sqlalchemy import select, func, desc
+from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.persistence.models import (
@@ -24,11 +25,8 @@ from app.persistence.models import (
     Message,
     OutboxEvent,
     Run,
-    RunStatus,
     ToolExecution,
 )
-from app.protocol.sse import clamp_after_seq
-
 
 # ---------------------------------------------------------------------------
 # Base Repository
@@ -41,7 +39,7 @@ class BaseRepository:
         self._session = session
 
     def _now(self) -> datetime:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
 
 
 # ---------------------------------------------------------------------------

@@ -10,7 +10,7 @@ The factory reads settings.llm_provider to determine which provider to use.
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from langchain_core.language_models import BaseChatModel
 from langchain_openai import ChatOpenAI

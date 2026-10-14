@@ -4,7 +4,9 @@ Uses domain logic from app.domain.agent_film for actual preparation.
 """
 from __future__ import annotations
 
-from app.domain.agent_film import prepare_generation, build_generation_approval
+from typing import Any
+
+from app.domain.agent_film import build_generation_approval, prepare_generation
 from app.graph.state import AgentFilmState
 
 

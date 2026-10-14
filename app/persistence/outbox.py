@@ -14,12 +14,10 @@ Per plan.md section 5.4:
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
-from datetime import datetime
-from typing import Any, Callable, Coroutine
+from collections.abc import Callable, Coroutine
+from typing import Any
 
-from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.persistence.models import OutboxEvent

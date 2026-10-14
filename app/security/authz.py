@@ -9,7 +9,6 @@ This module provides reusable authorization helpers.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from fastapi import Request
 
@@ -90,8 +89,8 @@ def verify_conversation_access(
 def verify_run_access(
     run_conversation_id: str,
     request: Request,
-    conversation_user_id: Optional[str] = None,
-    conversation_project_id: Optional[str] = None,
+    conversation_user_id: str | None = None,
+    conversation_project_id: str | None = None,
 ) -> None:
     """Verify the requester can access the run.
 
@@ -120,8 +119,8 @@ def verify_run_access(
 def verify_artifact_access(
     artifact_conversation_id: str,
     request: Request,
-    conversation_user_id: Optional[str] = None,
-    conversation_project_id: Optional[str] = None,
+    conversation_user_id: str | None = None,
+    conversation_project_id: str | None = None,
 ) -> None:
     """Verify the requester can access the artifact.
 

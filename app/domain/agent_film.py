@@ -14,23 +14,24 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
-
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 from app.graph.profiles import get_profile
-from app.llm.factory import create_llm
 from app.persistence.repositories import (
     ArtifactRepository,
     EventRepository,
     OutboxRepository,
 )
 from app.persistence.unit_of_work import unit_of_work
+from app.protocol.language import generate_id
 from app.providers.digital_human import DigitalHumanProvider
 from app.providers.materials import MaterialProvider
 from app.providers.research import ProductResearchProvider
 from app.providers.video import VideoRenderProvider
-from app.protocol.language import generate_id
+
+if TYPE_CHECKING:
+    from app.graph.state import AgentFilmState
 
 logger = logging.getLogger(__name__)
 
@@ -499,7 +500,7 @@ def _generate_script_segments(
             {
                 "segment": 2,
                 "time": f"{duration // 3}-{2 * duration // 3}s",
-                "camera_desc": f"特写镜头 - 核心功能展示",
+                "camera_desc": "特写镜头 - 核心功能展示",
                 "script_content": f"{key_messages[1] if len(key_messages) > 1 else '卓越性能，值得信赖'}。",
                 "screen_text": key_messages[0] if key_messages else "",
                 "core_purpose": "highlight",
@@ -508,7 +509,7 @@ def _generate_script_segments(
             {
                 "segment": 3,
                 "time": f"{2 * duration // 3}-{duration}s",
-                "camera_desc": f"结尾号召 - 行动召唤",
+                "camera_desc": "结尾号召 - 行动召唤",
                 "script_content": f"立即体验 {product_name}，开启品质生活。",
                 "screen_text": "立即购买",
                 "core_purpose": "call_to_action",
@@ -521,7 +522,7 @@ def _generate_script_segments(
         {
             "segment": 1,
             "time": f"0-{duration // 4}s",
-            "camera_desc": f"开场 - 品牌/商品展示",
+            "camera_desc": "开场 - 品牌/商品展示",
             "script_content": f"欢迎了解 {product_name}。{key_messages[0] if key_messages else '我们致力于提供卓越品质'}。",
             "screen_text": product_name,
             "core_purpose": "brand_intro",
@@ -530,7 +531,7 @@ def _generate_script_segments(
         {
             "segment": 2,
             "time": f"{duration // 4}-{duration // 2}s",
-            "camera_desc": f"产品功能展示",
+            "camera_desc": "产品功能展示",
             "script_content": f"{key_messages[1] if len(key_messages) > 1 else '每一个细节都经过精心设计'}。",
             "screen_text": key_messages[0] if key_messages else "",
             "core_purpose": "feature_demo",
@@ -539,7 +540,7 @@ def _generate_script_segments(
         {
             "segment": 3,
             "time": f"{duration // 2}-{3 * duration // 4}s",
-            "camera_desc": f"用户场景/情感共鸣",
+            "camera_desc": "用户场景/情感共鸣",
             "script_content": f"{key_messages[2] if len(key_messages) > 2 else '让生活更美好'}。",
             "screen_text": key_messages[1] if len(key_messages) > 1 else "",
             "core_purpose": "emotional_connect",
@@ -548,7 +549,7 @@ def _generate_script_segments(
         {
             "segment": 4,
             "time": f"{3 * duration // 4}-{duration}s",
-            "camera_desc": f"结尾号召",
+            "camera_desc": "结尾号召",
             "script_content": f"选择 {product_name}，选择品质。立即行动！",
             "screen_text": "立即购买",
             "core_purpose": "call_to_action",
@@ -883,7 +884,7 @@ async def create_final_video_artifact(
 ) -> dict[str, Any]:
     """Create the final video Artifact and emit artifact.created + business.message."""
     artifact_id = generate_id("art")
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     profile = get_profile(state.get("profile_id", "one-click-quick"))
     script = state.get("script", {})
     storyboard = state.get("storyboard", {})
@@ -1046,7 +1047,7 @@ async def publish_artifacts(state: AgentFilmState) -> dict[str, Any]:
             "type": "final_video",
             "uri": result["video_url"],
             "status": "ready",
-            "created_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(UTC).isoformat(),
         }]
         return {"artifacts": artifacts}
 

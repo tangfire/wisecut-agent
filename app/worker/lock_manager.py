@@ -21,7 +21,6 @@ import asyncio
 import json
 import logging
 import time
-from typing import Optional
 
 import redis.asyncio as aioredis
 
@@ -49,7 +48,7 @@ class ConversationLock:
         self._run_id = run_id
         self._ttl = ttl
         self._key = f"{_LOCK_PREFIX}{conversation_id}"
-        self._heartbeat_task: Optional[asyncio.Task] = None
+        self._heartbeat_task: asyncio.Task | None = None
         self._released = False
 
     @property
@@ -109,7 +108,7 @@ class ConversationLock:
         conversation_id: str,
         run_id: str,
         ttl: int = _LOCK_TTL,
-    ) -> Optional["ConversationLock"]:
+    ) -> ConversationLock | None:
         """Try to acquire the conversation lock.
 
         Returns a ConversationLock on success, or None if another worker

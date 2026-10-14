@@ -16,8 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
-from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator, Optional
+from typing import Any
 
 import pika
 from pika.adapters.blocking_connection import BlockingChannel
@@ -133,7 +132,7 @@ class RabbitMQConnection:
         self._channel = None
         self._connection = None
 
-    def __enter__(self) -> "RabbitMQConnection":
+    def __enter__(self) -> RabbitMQConnection:
         self.connect()
         return self
 

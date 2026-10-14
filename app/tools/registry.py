@@ -6,7 +6,6 @@ Graph nodes and the Worker use the registry to discover and invoke tools.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from app.tools.contracts import SecurityLevel, ToolContract
 

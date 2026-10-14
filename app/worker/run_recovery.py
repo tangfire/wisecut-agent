@@ -10,14 +10,12 @@ Recovery rules (plan.md §10.2):
 
 from __future__ import annotations
 
-import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from app.persistence.engine import get_session_factory
 from app.persistence.repositories import RunRepository
-from app.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +50,7 @@ async def scan_and_recover() -> list[dict[str, Any]]:
             if status == "running":
                 # Check if the run has been stuck for too long (crash vs normal)
                 if run.started_at:
-                    elapsed = (datetime.now(timezone.utc) - run.started_at).total_seconds()
+                    elapsed = (datetime.now(UTC) - run.started_at).total_seconds()
                     if elapsed > 3600:  # > 1 hour stuck → mark as failed
                         await repo.mark_finished(run_id, "failed", "run_stuck_worker_crash")
                         logger.warning(

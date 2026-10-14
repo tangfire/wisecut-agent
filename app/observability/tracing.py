@@ -9,7 +9,6 @@ Provides:
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from app.settings import settings
 
@@ -20,7 +19,7 @@ _tracer_provider_initialized: bool = False
 _tracer = None
 
 
-def setup_tracing(app: Optional[object] = None) -> None:
+def setup_tracing(app: object | None = None) -> None:
     """Initialize OpenTelemetry tracing.
 
     Called at application startup.  Instruments:
@@ -42,10 +41,10 @@ def setup_tracing(app: Optional[object] = None) -> None:
 
     try:
         from opentelemetry import trace
+        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
         from opentelemetry.sdk.resources import Resource
         from opentelemetry.sdk.trace import TracerProvider
         from opentelemetry.sdk.trace.export import BatchSpanProcessor
-        from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 
         resource = Resource.create({
             "service.name": settings.service_name,
@@ -72,6 +71,7 @@ def setup_tracing(app: Optional[object] = None) -> None:
         # Instrument SQLAlchemy
         try:
             from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+
             from app.persistence.engine import get_engine
             SQLAlchemyInstrumentor().instrument(engine=get_engine())
         except Exception as exc:
@@ -102,7 +102,7 @@ def get_tracer():
     return _tracer
 
 
-def create_span(name: str, attributes: Optional[dict[str, str]] = None):
+def create_span(name: str, attributes: dict[str, str] | None = None):
     """Create a span context manager.
 
     Usage:

@@ -8,7 +8,7 @@ Aligns with Go Client's `DecideApproval` contract:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from app.persistence.models import Approval, ApprovalStatus
@@ -61,7 +61,7 @@ class ApprovalService:
         """
         approval_id = generate_id("approval")
         event_id = generate_id("event")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         async with unit_of_work() as uow:
             approval_repo = ApprovalRepository(uow.session)

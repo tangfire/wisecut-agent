@@ -18,10 +18,7 @@ because consumers deduplicate by event_id + seq.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
-from datetime import datetime, timezone
-from typing import Any
 
 from app.persistence.engine import get_session_factory
 from app.persistence.repositories import OutboxRepository

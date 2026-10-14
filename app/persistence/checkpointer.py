@@ -6,11 +6,12 @@ Maps LangGraph thread_id <-> run.graph_thread_id per plan.md section 5.3.
 
 from __future__ import annotations
 
-from typing import Any, Optional, Sequence
-from uuid import UUID, uuid4
+from collections.abc import Sequence
+from typing import Any
+from uuid import uuid4
 
 from langgraph.checkpoint.base import BaseCheckpointSaver, Checkpoint
-from sqlalchemy import select, desc
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.persistence.models import Checkpoint as CheckpointModel
@@ -31,9 +32,9 @@ class PostgreSQLCheckpointSaver(BaseCheckpointSaver):
     async def aget(
         self,
         thread_id: str,
-        checkpoint_id: Optional[str] = None,
-        checkpoint_map: Optional[dict[str, Any]] = None,
-    ) -> Optional[Checkpoint]:
+        checkpoint_id: str | None = None,
+        checkpoint_map: dict[str, Any] | None = None,
+    ) -> Checkpoint | None:
         """Get a checkpoint by thread_id and optional checkpoint_id."""
         if checkpoint_id:
             model = await self._repo.get_by_checkpoint_id(thread_id, checkpoint_id)
@@ -48,9 +49,9 @@ class PostgreSQLCheckpointSaver(BaseCheckpointSaver):
     async def aget_multi(
         self,
         thread_ids: Sequence[str],
-        checkpoint_ids: Optional[Sequence[Optional[str]]] = None,
-        checkpoint_map: Optional[dict[str, Any]] = None,
-    ) -> Sequence[Optional[Checkpoint]]:
+        checkpoint_ids: Sequence[str | None] | None = None,
+        checkpoint_map: dict[str, Any] | None = None,
+    ) -> Sequence[Checkpoint | None]:
         """Get multiple checkpoints."""
         results = []
         for i, thread_id in enumerate(thread_ids):
@@ -63,7 +64,7 @@ class PostgreSQLCheckpointSaver(BaseCheckpointSaver):
         self,
         thread_id: str,
         checkpoint: Checkpoint,
-        mapper: Optional[dict[str, Any]] = None,
+        mapper: dict[str, Any] | None = None,
     ) -> None:
         """Save a checkpoint."""
         checkpoint_id = checkpoint.config.get("checkpoint_id") or str(uuid4())
@@ -81,7 +82,7 @@ class PostgreSQLCheckpointSaver(BaseCheckpointSaver):
         self,
         thread_ids: Sequence[str],
         checkpoints: Sequence[Checkpoint],
-        mapper: Optional[dict[str, Any]] = None,
+        mapper: dict[str, Any] | None = None,
     ) -> None:
         """Save multiple checkpoints."""
         for thread_id, checkpoint in zip(thread_ids, checkpoints):
@@ -106,7 +107,7 @@ class PostgreSQLCheckpointSaver(BaseCheckpointSaver):
     async def alist(
         self,
         thread_id: str,
-        before: Optional[str] = None,
+        before: str | None = None,
         limit: int = 10,
     ) -> Sequence[Checkpoint]:
         """List checkpoints for a thread, optionally before a given checkpoint_id."""

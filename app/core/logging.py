@@ -7,14 +7,11 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import sys
-import time
-import uuid
+from datetime import UTC
 from typing import Any
 
 from app.settings import Environment, Settings
-
 
 # Sensitive field names that must never appear in logs.
 SENSITIVE_FIELDS: frozenset[str] = frozenset(
@@ -100,8 +97,8 @@ class RedactingFormatter(logging.Formatter):
 
     @staticmethod
     def _format_time(created: float) -> str:
-        from datetime import datetime, timezone
-        return datetime.fromtimestamp(created, tz=timezone.utc).isoformat()
+        from datetime import datetime
+        return datetime.fromtimestamp(created, tz=UTC).isoformat()
 
     @staticmethod
     def _redact(obj: Any) -> Any:

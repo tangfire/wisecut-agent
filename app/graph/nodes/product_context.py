@@ -4,7 +4,9 @@ Uses domain logic from app.domain.agent_film for actual extraction.
 """
 from __future__ import annotations
 
-from app.domain.agent_film import extract_product_context, build_product_context_interaction
+from typing import Any
+
+from app.domain.agent_film import build_product_context_interaction, extract_product_context
 from app.graph.state import AgentFilmState
 
 

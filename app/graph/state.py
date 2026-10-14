@@ -14,7 +14,7 @@ Design (plan.md §6):
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+from typing import TypedDict
 
 
 class AgentFilmState(TypedDict):
