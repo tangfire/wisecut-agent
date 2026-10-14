@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.persistence.models import (
     Approval,
     Artifact,
+    AuditLog,
     Checkpoint,
     Conversation,
     Event,
@@ -637,3 +638,51 @@ class OutboxRepository(BaseRepository):
             event.attempt += 1
             event.last_error = error
             await self._session.flush()
+
+
+# ---------------------------------------------------------------------------
+# Audit Log Repository
+# ---------------------------------------------------------------------------
+
+
+class AuditLogRepository(BaseRepository):
+    """Repository for AuditLog aggregate (WP-10)."""
+
+    async def create(
+        self,
+        actor_type: str,
+        actor_id: str,
+        action: str,
+        resource_type: str,
+        resource_id: str,
+        payload: dict[str, Any] | None = None,
+    ) -> AuditLog:
+        log = AuditLog(
+            id=str(uuid4()),
+            actor_type=actor_type,
+            actor_id=actor_id,
+            action=action,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            payload_json=payload or {},
+        )
+        self._session.add(log)
+        await self._session.flush()
+        return log
+
+    async def get_by_resource(
+        self,
+        resource_type: str,
+        resource_id: str,
+        limit: int = 50,
+    ) -> Sequence[AuditLog]:
+        result = await self._session.execute(
+            select(AuditLog)
+            .where(
+                AuditLog.resource_type == resource_type,
+                AuditLog.resource_id == resource_id,
+            )
+            .order_by(AuditLog.created_at.desc())
+            .limit(limit)
+        )
+        return result.scalars().all()

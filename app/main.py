@@ -92,6 +92,59 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
 
     @app.middleware("http")
+    async def metrics_middleware(request: Request, call_next):
+        """Record HTTP request metrics."""
+        from app.observability.metrics import metrics as collector
+        start = time.perf_counter()
+        try:
+            response = await call_next(request)
+            duration_ms = (time.perf_counter() - start) * 1000
+            collector.record_http_request(
+                method=request.method,
+                path=request.url.path,
+                status_code=response.status_code,
+                duration_ms=duration_ms,
+            )
+            return response
+        except Exception:
+            duration_ms = (time.perf_counter() - start) * 1000
+            collector.record_http_request(
+                method=request.method,
+                path=request.url.path,
+                status_code=500,
+                duration_ms=duration_ms,
+            )
+            raise
+
+    if settings.enable_rate_limit:
+        @app.middleware("http")
+        async def rate_limit_middleware(request: Request, call_next):
+            """Simple per-user rate limiting."""
+            from app.security.rate_limit import get_rate_limiter
+            limiter = get_rate_limiter()
+            user_id = getattr(request.state, "maa_user_id", "") or "anon"
+            key = f"user:{user_id}"
+            allowed, info = await limiter.is_allowed(
+                key=key,
+                limit=settings.rate_limit_requests,
+                window_seconds=settings.rate_limit_window_seconds,
+            )
+            if not allowed:
+                return JSONResponse(
+                    status_code=429,
+                    content={
+                        "error": "rate_limit_exceeded",
+                        "detail": f"Rate limit exceeded: {info['limit']} requests per {settings.rate_limit_window_seconds}s",
+                        "reset_seconds": info["reset_seconds"],
+                    },
+                )
+            response = await call_next(request)
+            response.headers["X-RateLimit-Limit"] = str(info["limit"])
+            response.headers["X-RateLimit-Remaining"] = str(info["remaining"])
+            response.headers["X-RateLimit-Reset"] = str(info["reset_seconds"])
+            return response
+
+    @app.middleware("http")
     async def request_context_middleware(request: Request, call_next):
         """Inject trace_id, request_id, and MAA headers into request state and logs."""
         trace_id = request.headers.get("X-Trace-ID", str(__import__("uuid").uuid4()))
@@ -234,6 +287,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "version": settings.version,
             "env": settings.app_env.value,
         }
+
+    @app.get("/metrics", tags=["Health"], summary="Application metrics")
+    async def metrics_endpoint(request: Request):
+        """Return application metrics in JSON format."""
+        from app.observability.metrics import metrics as collector
+        return collector.to_dict()
 
     # ---- MAA API routers (stubs for WP-01 contract) ----
     from app.api import conversations, messages, runs, approvals, artifacts

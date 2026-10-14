@@ -176,7 +176,43 @@ class Settings(BaseSettings):
     )
 
     # ------------------------------------------------------------------
-    # Security
+    # Security (WP-10)
+    # ------------------------------------------------------------------
+    max_file_size_mb: int = Field(
+        default=50,
+        ge=1,
+        le=500,
+        description="Max file size per upload (MB).",
+    )
+    max_total_upload_mb: int = Field(
+        default=200,
+        ge=1,
+        le=2000,
+        description="Max total upload size per request (MB).",
+    )
+    max_file_count: int = Field(
+        default=20,
+        ge=1,
+        le=100,
+        description="Max number of files per request.",
+    )
+    enable_rate_limit: bool = Field(
+        default=False,
+        description="Enable API rate limiting (Redis-backed).",
+    )
+    rate_limit_requests: int = Field(
+        default=100,
+        ge=1,
+        description="Max requests per window.",
+    )
+    rate_limit_window_seconds: int = Field(
+        default=60,
+        ge=1,
+        description="Rate limit window in seconds.",
+    )
+
+    # ------------------------------------------------------------------
+    # Observability (WP-10)
     # ------------------------------------------------------------------
     api_key: str | None = Field(
         default=None,

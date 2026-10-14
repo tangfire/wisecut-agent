@@ -22,6 +22,7 @@ from app.persistence.engine import get_session_factory
 from app.persistence.repositories import (
     ApprovalRepository,
     ArtifactRepository,
+    AuditLogRepository,
     CheckpointRepository,
     ConversationRepository,
     EventRepository,
@@ -52,6 +53,7 @@ class UnitOfWork:
         self.tool_executions = ToolExecutionRepository(session)
         self.checkpoints = CheckpointRepository(session)
         self.outbox = OutboxRepository(session)
+        self.audit_log = AuditLogRepository(session)
 
     async def commit(self) -> None:
         await self._session.commit()
