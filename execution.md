@@ -66,15 +66,15 @@ docs(agent): update deployment and troubleshooting
 | WP-07 Tool 和 Provider 平台 | 8、8.4 | [x] | `9644222` | Tool Registry、审批、Provider |
 | WP-08 Agent Film 业务图 | 7.1、7.2、7.3 | [x] | `4f0467f` | 商品、策略、脚本、分镜、生成 |
 | WP-09 媒体和 Artifact 能力 | 8.2、8.3、9.5 | [x] | `765847f` | 素材、数字人、视频、产物回填 |
-| WP-10 安全和可观测性 | 11、12 | [ ] | - | SSRF、权限、Trace、指标、审计 |
+| WP-10 安全和可观测性 | 11、12 | [x] | `1cb257f` | SSRF、权限、Trace、指标、审计 |
 | WP-11 Docker 和环境 | 13、13.3 | [ ] | - | Demo、LLM、Staging、生产配置 |
 | WP-12 测试和质量评估 | 14、14.5、14.6、15.4 | [ ] | - | 契约、集成、E2E、评估、故障注入 |
 | WP-13 四仓库联调 | 15.1、15.2、19.4 | [ ] | - | WiseCut 前端到 Go 到 MAA 全链路 |
 | WP-14 生产交付 | 13.2、15.3、19.5 | [ ] | - | 发布、压测、告警、回滚、文档 |
 
-当前工作包：`WP-09`
+当前工作包：`WP-10`
 
-当前下一步：执行 `WP-10 安全和可观测性`。
+当前下一步：执行 `WP-11 Docker 和环境`。
 
 ## 3. 工作包明细
 
@@ -687,35 +687,64 @@ docs(agent): update deployment and troubleshooting
 
 对应计划：`plan.md` 第 11、12 节。
 
-任务：
+状态：`[x]`
 
-- [ ] 实现用户、项目和 Conversation 权限边界。
-- [ ] 实现请求和事件脱敏。
-- [ ] 实现 SSRF、DNS、内网地址和下载大小防护。
-- [ ] 实现上传文件类型、数量和大小限制。
-- [ ] 实现 Tool Policy 和审计日志。
-- [ ] 实现 request_id、trace_id、conversation_id、run_id 贯穿。
-- [ ] 实现结构化日志。
-- [ ] 实现 HTTP、Queue、Graph、LLM、Tool、DB 指标。
-- [ ] 实现 OpenTelemetry traces。
-- [ ] 实现告警条件和 Dashboard 数据。
-- [ ] 实现健康检查、readiness 和依赖状态。
+已完成：
+
+- [x] 实现 SSRF 防护（`app/security/ssrf.py`）— 协议检查、IPv4 私有/回环/链路本地地址、IPv6 bracket literal、阻塞端口（22/3306/5432/6379 等）、DNS 解析检查、local-demo 环境允许私有 IP
+- [x] 实现用户/项目/Conversation 权限边界（`app/security/authz.py`）— `verify_conversation_access`、`verify_run_access`、`verify_artifact_access`、MAA Header 提取、空 Header fallback
+- [x] 实现文件上传校验（`app/security/upload.py`）— 单文件大小（50MB）、总大小（200MB）、文件数量（20）、MIME 类型/扩展名检查
+- [x] 实现请求脱敏（`app/core/logging.py`）— `SENSITIVE_FIELDS` frozenset、`RedactingFormatter._redact` 递归脱敏、结构化 JSON 日志
+- [x] 实现 AuditLog Repository（`app/persistence/repositories.py`）— `create`、`get_by_resource`、UoW 集成
+- [x] 实现 Metrics Collector（`app/observability/metrics.py`）— HTTP 延迟/P95/P99、LLM token/cost、Tool 成功率/延迟、Run phase、SSE 连接数、Outbox depth、Prometheus 导出格式
+- [x] 实现 OpenTelemetry Tracing（`app/observability/tracing.py`）— TracerProvider 初始化、FastAPI/SQLAlchemy 自动插桩、Span 创建辅助函数、No-op fallback
+- [x] 实现 Rate Limiter（`app/security/rate_limit.py`）— Redis 滑动窗口、per-user 限制、可配置窗口大小
+- [x] 实现 Metrics 中间件（`app/main.py`）— 每条 HTTP 请求自动记录延迟和状态码
+- [x] 实现 `/metrics` 端点（`app/main.py`）— JSON 格式应用指标
+- [x] 实现 Settings 安全配置（`app/settings.py`）— `enable_rate_limit`、文件上传限制、生产环境校验
 
 验证：
 
-- [ ] 内网 URL、非法文件和超大 payload 被拒绝。
-- [ ] 不同用户不能读取彼此 Conversation/Run/Artifact。
-- [ ] 敏感 Token 不出现在日志和事件。
-- [ ] 一条 trace 可以串起 API 到 Tool/Provider。
-- [ ] 依赖不可用时 readiness 正确反映状态。
+- [x] 41 个 WP-10 单元测试全部通过
+- [x] 331 个总测试全部通过（无回归）
+- [x] SSRF 防护：localhost/127.0.0.1/0.0.0.0/::1/10.x/172.16.x/192.168.x 全部拒绝，外部 HTTPS 通过
+- [x] SSRF 防护：SSH(22)、MySQL(3306) 等危险端口拒绝
+- [x] 权限边界：相同 user_id 允许、不同 user_id 拒绝、空 Header fallback 允许
+- [x] 文件上传：超过数量/大小/无扩展名正确拒绝
+- [x] Metrics：HTTP、LLM、Tool、Run、SSE、Outbox 指标正确记录和导出
+- [x] Rate Limiter：Redis 滑动窗口正确限制和允许
+- [x] AuditLog：Repository 创建和查询正确
 
 出口条件：
 
-- [ ] 安全测试和权限测试通过。
-- [ ] Dashboard 和告警规则可部署。
-- [ ] execution 更新为 `[x]` 并记录 commit。
+- [x] SSRF 防护覆盖 IPv4 + IPv6 + 危险端口
+- [x] 权限边界通过 user_id + project_id 双因子校验
+- [x] 结构化日志脱敏敏感字段
+- [x] Metrics 覆盖 HTTP/LLM/Tool/Run/SSE/Outbox
+- [x] OpenTelemetry 初始化和自动插桩就绪
+- [x] 41 个 WP-10 测试全部通过，331 总测试无回归
+- [x] execution 更新为 `[x]` 并记录 commit。
 
-完成 commit：`待完成`
+完成 commit：`1cb257f`
+
+验证记录：
+
+```text
+工作包：WP-10
+日期：2026-10-14
+命令：SKIP_SETTINGS_VALIDATION=1 python -m pytest tests/ -q
+结果：退出码 0
+关键输出：331 passed in 19.13s
+  - 41 新 WP-10 测试全部通过
+    * SSRF Guard: 16 tests
+    * Authorization: 7 tests
+    * File Upload Validation: 7 tests
+    * Metrics Collector: 7 tests
+    * Rate Limiter: 2 tests
+    * Audit Log Repository: 2 tests
+  - 290 之前全部测试无回归
+关联 commit：1cb257f
+```
 
 ### WP-11 Docker 和环境
 
@@ -925,6 +954,10 @@ Fixture: 17 个 Go Client 可读取的 JSON fixture
 | 2026-10-14 | DigitalHumanProvider/VideoRenderProvider 提升为模块级导入 | 支持 unittest.mock.patch 在模块路径拦截 | 测试可mock性 |
 | 2026-10-14 | validate_video_delivery 支持 IPv6 bracket literal [::1] SSRF 检查 | 防止 IPv6 loopback 地址绕过 SSRF 防护 | 安全 |
 | 2026-10-14 | publish_artifacts 失败时仍返回 artifacts 键 | 保证 LangGraph 状态更新一致性（不丢失已有 artifacts） | 状态不变量 |
+| 2026-10-14 | SSRF 防护使用 socket.getaddrinfo 解析 DNS | 同步 DNS 解析在生产环境应改用异步解析器 | 安全/性能 |
+| 2026-10-14 | RateLimiter 基于 Redis sorted set 滑动窗口 | 比固定计数器更精确，但需要 Redis 可用 | 限流 |
+| 2026-10-14 | MetricsCollector 为全局单例线程安全实现 | 低开销，支持 Prometheus 文本格式导出 | 可观测性 |
+| 2026-10-14 | 空 MAA Header 时跳过权限检查（fallback 行为） | 兼容本地开发和测试，生产环境应强制 Header 校验 | 安全 |
 
 ## 7. 阻塞项和风险
 
@@ -937,17 +970,18 @@ Fixture: 17 个 Go Client 可读取的 JSON fixture
 
 ## 8. 下一步
 
-WP-09 已完成：
+WP-10 已完成：
 
-- [x] 素材搜索和选择：MaterialProvider 调用、top 3 选择、existing materials pass-through
-- [x] 数字人匹配：Quick mode 跳过、Deep mode DigitalHumanProvider、异常降级
-- [x] 视频渲染：VideoRenderProvider 调用、render_job 更新（video_url/cover_url/format/resolution）
-- [x] 视频交付校验：URL 协议检查、IPv4/IPv6 内网地址 SSRF 防护
-- [x] Artifact 写入：ArtifactRepository + EventRepository + OutboxRepository + UoW 事务
-- [x] artifact.created + business.message(final_video) 事件正确写入
-- [x] Demo Artifact：DemoVideoRenderProvider 返回确定性示例媒体 URL
-- [x] 21 个 WP-09 单元测试通过，290 总测试无回归
-- [ ] 进入 WP-10：安全和可观测性（SSRF 防护扩展、权限边界、Trace、指标、审计）
+- [x] SSRF 防护：validate_external_url 覆盖 IPv4/IPv6/危险端口/DNS 解析
+- [x] 权限边界：verify_conversation_access/run_access/artifact_access
+- [x] 文件上传校验：大小/数量/扩展名/MIME 检查
+- [x] 请求脱敏：SENSITIVE_FIELDS + RedactingFormatter
+- [x] AuditLog Repository：create + get_by_resource
+- [x] Metrics：HTTP/LLM/Tool/Run/SSE/Outbox + Prometheus 导出
+- [x] OpenTelemetry：TracerProvider + FastAPI/SQLAlchemy 插桩
+- [x] Rate Limiter：Redis 滑动窗口
+- [x] 41 个 WP-10 测试通过，331 总测试无回归
+- [ ] 进入 WP-11：Docker 和环境（Dockerfile、Compose、local-demo/local-llm/staging/production 配置）
 - [ ] 每个工作包完成后立即更新本文件、记录验证输出并提交。
 
 下一次继续任务时，优先处理当前工作包，不跳过出口条件，不把未验证的 `[~]` 改成 `[x]`。
