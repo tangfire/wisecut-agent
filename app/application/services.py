@@ -20,6 +20,7 @@ from app.persistence.repositories import (
     EventRepository,
     InteractionRepository,
     MessageRepository,
+    OutboxRepository,
     RunRepository,
 )
 from app.persistence.unit_of_work import UnitOfWork
@@ -169,6 +170,7 @@ class MessageService:
         self._messages = uow.messages
         self._runs = uow.runs
         self._events = uow.events
+        self._outbox = uow.outbox
 
     async def post_message(
         self,
@@ -209,6 +211,21 @@ class MessageService:
             message_type=message_type,
             metadata=metadata or {},
             request_id=request_id,
+        )
+
+        # Enqueue run command for Worker processing (Outbox pattern)
+        await self._outbox.enqueue(
+            aggregate_type="run",
+            aggregate_id=run_id,
+            event_type="run.command",
+            payload={
+                "run_id": run_id,
+                "conversation_id": conversation_id,
+                "command_type": message_type,
+                "payload": {"content": content, "message_id": message_id},
+                "max_retries": 3,
+                "attempt": 0,
+            },
         )
 
         logger.info(

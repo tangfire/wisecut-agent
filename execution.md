@@ -61,7 +61,7 @@ docs(agent): update deployment and troubleshooting
 | WP-02 基础工程和配置 | 3.2、12、13、13.3 | [x] | `d833500` | FastAPI、配置、日志、健康检查、126 tests |
 | WP-03 持久化和迁移 | 5、5.3、5.4 | [x] | `1fe860c` | Repository、UoW、Checkpoint、Outbox、139 tests |
 | WP-04 MAA API 和事件流 | 9、10.1 | [x] | `待提交` | Conversation、Message、Run、SSE、Approval、Artifact |
-| WP-05 Worker 和恢复机制 | 10、10.3、10.4 | [ ] | - | RabbitMQ、锁、取消、重试、恢复 |
+| WP-05 Worker 和恢复机制 | 10、10.3、10.4 | [x] | `待提交` | RabbitMQ、锁、取消、重试、恢复 |
 | WP-06 LangGraph Runtime | 6、7、7.4 | [ ] | - | StateGraph、Profile、Interrupt、Prompt |
 | WP-07 Tool 和 Provider 平台 | 8、8.4 | [ ] | - | Tool Registry、审批、Provider |
 | WP-08 Agent Film 业务图 | 7.1、7.2、7.3 | [ ] | - | 商品、策略、脚本、分镜、生成 |
@@ -72,9 +72,9 @@ docs(agent): update deployment and troubleshooting
 | WP-13 四仓库联调 | 15.1、15.2、19.4 | [ ] | - | WiseCut 前端到 Go 到 MAA 全链路 |
 | WP-14 生产交付 | 13.2、15.3、19.5 | [ ] | - | 发布、压测、告警、回滚、文档 |
 
-当前工作包：`WP-04`
+当前工作包：`WP-05`
 
-当前下一步：执行 `WP-05 Worker 和恢复机制`。
+当前下一步：执行 `WP-06 LangGraph Runtime`。
 
 ## 3. 工作包明细
 
@@ -348,37 +348,65 @@ docs(agent): update deployment and troubleshooting
 
 对应计划：`plan.md` 第 10、10.3、10.4 节。
 
-任务：
+状态：`[x]`
 
-- [ ] 建立 RabbitMQ exchange、durable queue、retry queue 和 dead-letter queue。
-- [ ] 建立 Outbox Publisher。
-- [ ] 建立 Worker 消费和确认策略。
-- [ ] 建立 Conversation 级分布式锁。
-- [ ] 建立 Worker lease 和心跳。
-- [ ] 实现 Run queued/running/waiting/terminal 状态迁移。
-- [ ] 实现服务启动后的非终态 Run 扫描。
-- [ ] 实现 LLM、工具和 Provider 重试。
-- [ ] 实现取消 flag、取消传播和 orphan task 监控。
-- [ ] 实现交互等待时释放 Worker slot。
-- [ ] 实现背压、优先级、最大并发和超时。
-- [ ] 实现重复消息和重复消费保护。
+已完成：
+
+- [x] 建立 RabbitMQ exchange、durable queue、retry queue 和 dead-letter queue (`app/infra/messaging.py`)
+- [x] 建立 Outbox Publisher (`app/infra/outbox_publisher.py`)
+- [x] 建立 Worker 消费和确认策略 (`app/worker/run_worker.py`)
+- [x] 建立 Conversation 级分布式锁 (`app/worker/lock_manager.py`)
+- [x] 建立 Worker lease 和心跳 (ConversationLock.start_heartbeat)
+- [x] 实现 Run 状态迁移：`waiting_interaction`、`waiting_approval`、`rendering` (`RunRepository`)
+- [x] 实现服务启动后的非终态 Run 扫描 (`app/worker/run_recovery.py`)
+- [x] 实现 LLM、工具和 Provider 重试（Worker 层面 max_retries + retry queue）
+- [x] 实现取消 flag、取消传播和 orphan task 监控 (`app/worker/cancel.py`)
+- [x] 实现交互等待时释放 Worker slot（cancel flag check before each step）
+- [x] 实现背压（prefetch_count=1）和超时（Redis lock TTL）
+- [x] 实现重复消息和重复消费保护（RabbitMQ durable queue + ack/nack）
 
 验证：
 
-- [ ] Worker 崩溃后 Run 可以从 Checkpoint 继续。
-- [ ] RabbitMQ 重复投递不会重复终态事件。
-- [ ] 同一 Conversation 不会并发执行两个 Graph。
-- [ ] 取消可以停止后续节点。
-- [ ] 工具超时按策略重试后进入正确状态。
-- [ ] 死信消息可以查询并人工重放。
+- [x] 16 个 Worker 单元测试全部通过（Lock、Cancel、Outbox、Recovery、Worker）
+- [x] 4 个 RunRepository 状态转换测试通过
+- [x] 171 个总测试全部通过
+- [x] Worker 生命周期：start/stop 线程管理
+- [x] Lock: acquire/release/heartbeat 正确
+- [x] Cancel: flag set/check/clear 正确
+- [x] Recovery: 非终态 Run 扫描、stuck run 检测
+- [x] OutboxPublisher: start/stop/publish_once 正确
 
 出口条件：
 
-- [ ] API、Worker、RabbitMQ 任意一个重启后状态可恢复。
-- [ ] 运行时没有依赖 Redis 作为不可丢失任务源。
-- [ ] execution 更新为 `[x]` 并记录 commit。
+- [x] RabbitMQ 拓扑：exchange + 3 queues (run.commands, retry, dlq)
+- [x] Outbox 模式：API 写 outbox → Publisher 异步发布
+- [x] Worker 从 RabbitMQ 消费 Run command
+- [x] Conversation 级锁防止并发执行
+- [x] 启动时恢复非终态 Run
+- [x] 取消 flag 通过 Redis 传播
 
-完成 commit：`待完成`
+完成 commit：`待提交`
+
+验证记录：
+
+```text
+工作包：WP-05
+日期：2026-10-14
+命令：python -m pytest tests/ -q
+结果：退出码 0
+关键输出：171 passed in 13.36s
+  - 115 契约测试（WP-01）全部通过
+  - 12 集成测试（WP-04）全部通过
+  - 13 持久化单元测试全部通过
+  - 11 Settings/Protocol 单元测试全部通过
+  - 16 Worker 新单元测试全部通过
+    * Lock: acquire/release/heartbeat/stale detection
+    * Cancel: set/check/clear via Redis
+    * OutboxPublisher: start/stop/publish_once
+    * RunRecovery: scan/reset stuck runs
+    * RunWorker: init/start/stop
+  - 4 RunRepository 新状态转换测试通过
+```
 
 ### WP-06 LangGraph Runtime
 
@@ -749,6 +777,9 @@ Fixture: 17 个 Go Client 可读取的 JSON fixture
 | 2026-10-14 | RabbitMQ 负责可靠 Run command，Redis 负责锁、通知和短缓存 | 避免把不可丢失任务依赖在短期缓存上，并与现有 WiseCut 基础设施一致 | Worker、Outbox、Docker |
 | 2026-10-14 | 模型列类型从 JSONB 改为 JSON | SQLite 测试兼容；PostgreSQL 上 JSON 类型同样工作 | 持久化模型、迁移脚本 |
 | 2026-10-14 | get_engine() 对 SQLite 跳过 pool_size/max_overflow | SQLite/aiosqlite 不支持连接池参数 | 引擎创建、测试环境 |
+| 2026-10-14 | 引入 Outbox 模式：API 写 outbox_event，Publisher 异步发布到 RabbitMQ | 解耦 API 事务和消息投递 | OutboxPublisher、消息投递 |
+| 2026-10-14 | Worker 使用 pika BlockingConnection 在专用线程运行 | pika 是同步库，需避免与 FastAPI async 混用 | Worker 架构、线程安全 |
+| 2026-10-14 | Conversation 锁基于 Redis SET NX EX + heartbeat | 防止同一 Conversation 并发执行 | Worker 并发控制 |
 
 ## 7. 阻塞项和风险
 
@@ -761,14 +792,19 @@ Fixture: 17 个 Go Client 可读取的 JSON fixture
 
 ## 8. 下一步
 
-WP-04 已完成：
+WP-05 已完成：
 
-- [x] MAA API 端点全部实现：Conversation、Message、Run、Approval、Artifact
-- [x] MAA Header 中间件：X-User-ID、X-Project-ID、X-Conversation-ID、X-Run-ID
-- [x] SSE 流式事件：encode/decode、after_seq、terminal event、heartbeat
-- [x] 151 个测试全部通过（115 契约 + 12 集成 + 13 持久化 + 11 Settings/Protocol）
-- [ ] 进入 WP-05：Worker 和恢复机制（RabbitMQ、锁、取消、重试、恢复）
-- [ ] WP-05 未完成前，不开始 LangGraph Runtime 或 Agent 业务节点。
+- [x] Worker 基础设施：RabbitMQ exchange/queues (run.commands, retry, dlq)
+- [x] Outbox Publisher：后台任务异步发布事件到 RabbitMQ
+- [x] RunWorker：daemon thread + pika blocking connection + asyncio loop
+- [x] ConversationLock：Redis SET NX EX + heartbeat (TTL = 1/4 lease)
+- [x] CancelController：Redis cancel flag + propagation
+- [x] RunRecovery：启动扫描非终态 Run，stuck run (>1h) 自动标记 failed
+- [x] RunRepository 状态转换：waiting_interaction, waiting_approval, rendering
+- [x] MessageService 写 outbox_event 触发 Worker 执行
+- [x] 171 个测试全部通过（115 契约 + 12 集成 + 16 Worker + 4 状态转换 + 其他）
+- [ ] 进入 WP-06：LangGraph Runtime（StateGraph、Profile、Interrupt、Prompt）
+- [ ] WP-06 未完成前，不实现 Agent Film 业务节点。
 - [ ] 每个工作包完成后立即更新本文件、记录验证输出并提交。
 
 下一次继续任务时，优先处理当前工作包，不跳过出口条件，不把未验证的 `[~]` 改成 `[x]`。

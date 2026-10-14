@@ -208,6 +208,30 @@ class RunRepository(BaseRepository):
             await self._session.flush()
         return run
 
+    async def mark_waiting_interaction(self, run_id: str) -> Run | None:
+        run = await self.get_by_id(run_id)
+        if run:
+            run.status = "waiting_interaction"
+            run.phase = "awaiting_user_input"
+            await self._session.flush()
+        return run
+
+    async def mark_waiting_approval(self, run_id: str) -> Run | None:
+        run = await self.get_by_id(run_id)
+        if run:
+            run.status = "waiting_approval"
+            run.phase = "awaiting_approval"
+            await self._session.flush()
+        return run
+
+    async def mark_rendering(self, run_id: str) -> Run | None:
+        run = await self.get_by_id(run_id)
+        if run:
+            run.status = "rendering"
+            run.phase = "rendering"
+            await self._session.flush()
+        return run
+
 
 # ---------------------------------------------------------------------------
 # Message Repository

@@ -142,6 +142,81 @@ class TestRunRepository:
         assert run.finished_at is not None
 
 
+class TestRunRepositoryStateTransitions:
+    """WP-05: Run state machine transitions."""
+
+    async def test_mark_waiting_interaction(self):
+        from app.persistence.repositories import RunRepository
+
+        session = _make_session()
+        repo = RunRepository(session)
+
+        run = MagicMock()
+        run.id = "run-1"
+        run.status = "running"
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = run
+        session.execute = AsyncMock(return_value=mock_result)
+        session.flush = AsyncMock()
+
+        await repo.mark_waiting_interaction("run-1")
+        assert run.status == "waiting_interaction"
+        assert run.phase == "awaiting_user_input"
+
+    async def test_mark_waiting_approval(self):
+        from app.persistence.repositories import RunRepository
+
+        session = _make_session()
+        repo = RunRepository(session)
+
+        run = MagicMock()
+        run.id = "run-1"
+        run.status = "running"
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = run
+        session.execute = AsyncMock(return_value=mock_result)
+        session.flush = AsyncMock()
+
+        await repo.mark_waiting_approval("run-1")
+        assert run.status == "waiting_approval"
+        assert run.phase == "awaiting_approval"
+
+    async def test_mark_rendering(self):
+        from app.persistence.repositories import RunRepository
+
+        session = _make_session()
+        repo = RunRepository(session)
+
+        run = MagicMock()
+        run.id = "run-1"
+        run.status = "running"
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = run
+        session.execute = AsyncMock(return_value=mock_result)
+        session.flush = AsyncMock()
+
+        await repo.mark_rendering("run-1")
+        assert run.status == "rendering"
+        assert run.phase == "rendering"
+
+    async def test_request_cancel_sets_cancel_requested_at(self):
+        from app.persistence.repositories import RunRepository
+
+        session = _make_session()
+        repo = RunRepository(session)
+
+        run = MagicMock()
+        run.id = "run-1"
+        run.status = "running"
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = run
+        session.execute = AsyncMock(return_value=mock_result)
+        session.flush = AsyncMock()
+
+        await repo.request_cancel("run-1")
+        assert run.cancel_requested_at is not None
+
+
 # ---------------------------------------------------------------------------
 # EventRepository
 # ---------------------------------------------------------------------------

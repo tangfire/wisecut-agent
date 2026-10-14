@@ -42,8 +42,23 @@ async def lifespan(app: FastAPI):
             "port": settings.port,
         },
     )
-    yield
-    logger.info("Shutting down WiseCut MAA Agent")
+
+    # Start background worker (WP-05)
+    worker: Any = None
+    if settings.enable_worker:
+        try:
+            from app.worker.run_worker import start_worker_thread
+            worker = start_worker_thread()
+            logger.info("Background worker started")
+        except Exception as exc:
+            logger.warning("Failed to start worker", extra={"error": str(exc)})
+
+    try:
+        yield
+    finally:
+        if worker:
+            worker.stop()
+        logger.info("Shutting down WiseCut MAA Agent")
 
 
 # ---------------------------------------------------------------------------
