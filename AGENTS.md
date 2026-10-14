@@ -5,7 +5,7 @@
 ## 开始任何工作前
 
 1. 阅读 `README.md`、`plan.md`、`execution.md`。
-2. 阅读 [MAA 协议来源地图](./docs/MAA_CONTRACT_SOURCE_MAP.md) 和 [WiseCut 联调指南](./docs/WISECUT_INTEGRATION.md)。
+2. 阅读 [正式重基线审计](./docs/REBASELINE_2026-10-14.md)、[MAA 协议来源地图](./docs/MAA_CONTRACT_SOURCE_MAP.md) 和 [WiseCut 联调指南](./docs/WISECUT_INTEGRATION.md)。
 3. 查看 `execution.md` 的当前工作包、阻塞项和最近提交。
 4. 确认本次修改对应哪个 `WP-*`，不要跨越工作包随意实现业务节点。
 5. 任何协议、状态、队列或数据库语义变更，先更新 `plan.md` 和 `execution.md` 的决策记录。
@@ -13,6 +13,7 @@
 ## 实现要求
 
 - 使用 Python、FastAPI、LangChain、LangGraph、PostgreSQL、RabbitMQ、Redis 和对象存储的既定架构。
+- 项目最终形态是“独立 Vue Agent Film 产品 + MAA Compatibility API”，两套入口共用领域内核但鉴权和路由分离。
 - MAA 外部 HTTP/SSE 协议优先兼容当前 WiseCut Go Client，不凭空设计另一套协议。
 - API 进程不执行长时间 Agent 工作流；Run 必须通过可靠队列交给 Worker。
 - LangGraph Checkpoint、MAA Run、Event seq 和 Artifact 必须保存明确映射。
@@ -22,6 +23,8 @@
 - 不直接修改 WiseCut MySQL；Agent 通过 MAA 事件和 Artifact 与 Go 后端交互。
 - 不把 Redis 当作不可丢失任务队列；可靠 Run command 使用 RabbitMQ。
 - 不把模型原始输出未经校验地当作业务事实，结构化输出必须经过 Schema 校验。
+- 真实视频通过远程视频生成 API Provider 完成；Provider 必须支持异步任务、Webhook/轮询、取消、超时和幂等回调。
+- 当前工作包是 WP-11。WP-11 未闭环前不得开始前端，以免在 stub/no-op 运行链上继续开发。
 
 ## 安全要求
 

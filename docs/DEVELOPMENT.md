@@ -12,6 +12,7 @@ Get-Content execution.md
 Get-Content AGENTS.md
 Get-Content docs\MAA_CONTRACT_SOURCE_MAP.md
 Get-Content docs\WISECUT_INTEGRATION.md
+Get-Content docs\REBASELINE_2026-10-14.md
 git status --short --branch
 git log --oneline -10
 ```

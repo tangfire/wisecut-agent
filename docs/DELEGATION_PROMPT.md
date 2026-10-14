@@ -12,10 +12,11 @@
 4. docs/DEVELOPMENT.md
 5. docs/MAA_CONTRACT_SOURCE_MAP.md
 6. docs/WISECUT_INTEGRATION.md
+7. docs/REBASELINE_2026-10-14.md
 
-目标不是写一个简化聊天 Demo，而是按 plan.md 完成可接入 WiseCut 的最终 MAA Agent 平台。核心技术路线是 FastAPI + LangChain + LangGraph + PostgreSQL + RabbitMQ + Redis + Docker。
+目标不是写一个简化聊天 Demo，而是按 plan.md 完成“独立 Agent Film 产品 + WiseCut MAA 兼容适配器”。核心技术路线是 Vue 3 + FastAPI + LangChain + LangGraph + PostgreSQL + RabbitMQ + Redis + 对象存储 + 远程视频生成 API。
 
-请从 execution.md 当前工作包开始，严格按工作包顺序推进。WP-00 仓库和文档基线已经完成并提交，当前直接进入 WP-01 MAA 协议冻结。不要重复提交 WP-00，也不要跳过 MAA wire contract、OpenAPI、JSON Schema、fixture 和契约测试，不能直接先写 Agent Film 业务节点。
+请从 execution.md 当前工作包开始，严格按工作包顺序推进。2026-10-14 已完成正式重基线，当前工作包是 WP-11 运行时闭环与质量纠偏。不要重复执行 WP-00 至 WP-10，也不要因为历史 checklist 中存在 `[x]` 就忽略重基线后重新打开的缺口。
 
 开发要求：
 - 先检查现有文件和 Git 状态，再给出本次工作包的简短执行说明。
@@ -26,7 +27,7 @@
 - 不要提交 .env、Token、密码、数据库、日志、上传文件或模型缓存。
 - 未经我明确要求，不要 push 到远端 GitHub。
 
-本轮开始时请先检查 Git 状态、读取 execution.md 并确认当前为 WP-01，然后开始冻结 MAA wire contract。如果 WP-01 不能在当前工作轮次完成，请停在真实完成点，更新 execution.md，明确记录已完成、未完成、测试输出、commit 和下一步，而不是虚报完成。
+本轮开始时请先检查 Git 状态，阅读重基线审计，并确认当前为 WP-11。先修复 Worker no-op、GraphRunner stub、interrupt/resume、真实 Graph 事件链、依赖锁、ruff、mypy、RabbitMQ 端口和权限接入。WP-11 未完成前不要开始独立 Vue 前端。不能在当前工作轮次完成时，请停在真实完成点，更新 execution.md，明确记录已完成、未完成、测试输出、commit 和下一步，而不是虚报完成。
 ```
 
 ## 智能体每轮结束时必须返回

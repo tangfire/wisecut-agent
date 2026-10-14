@@ -1,23 +1,33 @@
-# WiseCut MAA Agent 最终实施计划
+# WiseCut Agent Film 独立产品最终实施计划
 
 ## 1. 目标定义
 
 ### 1.1 最终目标
 
-在当前 `D:\dx\wisecut`、`D:\dx\wise-cut` 和 `D:\dx\oss-admin` 三个仓库之外，建设一个独立的 `wisecut-agent` 仓库，完整复现 WiseCut Agent Film 所依赖的 MAA 服务能力。
+在当前 `D:\dx\wisecut`、`D:\dx\wise-cut` 和 `D:\dx\oss-admin` 三个仓库之外，建设一个可以独立运行的 `wisecut-agent` Agent Film 产品，同时保留对 WiseCut MAA HTTP/SSE 协议的兼容能力。
+
+最终系统采用“双入口、单内核”架构：
+
+```text
+独立产品入口：Standalone Web -> Product API -> Agent Runtime
+WiseCut 兼容入口：WiseCut Go -> MAA Compatibility API -> Agent Runtime
+```
 
 最终系统必须满足：
 
-1. 对 WiseCut Go 后端提供兼容的 MAA HTTP API。
-2. 对 WiseCut Consumer 提供可恢复的 SSE 事件流。
-3. 使用 LangChain 完成模型、工具调用和结构化输出适配。
-4. 使用 LangGraph 完成有状态、多阶段、可暂停、可恢复的 Agent 工作流。
-5. 支持 Quick 和 Deep 两种 Agent Profile。
-6. 支持用户交互、工具审批、取消、重试、超时和断点恢复。
-7. 支持商品信息采集、脚本规划、分镜审核、素材处理、数字人匹配和视频渲染等智能成片流程。
-8. 支持本地 Demo Provider 和真实 Provider 两种模式，但两者使用同一套业务接口。
-9. 支持 Docker Compose 本地完整运行，并具备迁移到生产环境的部署边界。
-10. 让一次 Agent Run 的每个关键状态、事件、工具调用和产物都可追踪、可重放、可审计。
+1. 提供独立 Vue Web 应用，支持登录、项目管理、素材上传、Agent 交互、分镜审核、视频预览和下载。
+2. 提供独立 Product API，不要求调用方理解 WiseCut 的 MAA Header 和内部项目模型。
+3. 对 WiseCut Go 后端继续提供兼容的 MAA HTTP API。
+4. 对独立 Web 和 WiseCut Consumer 提供可恢复的 SSE 事件流。
+5. 使用 LangChain 完成真实模型调用、工具调用和结构化输出适配。
+6. 使用 LangGraph 完成有状态、多阶段、可暂停、可恢复的 Agent 工作流。
+7. 支持 Quick 和 Deep 两种 Agent Profile。
+8. 支持用户交互、工具审批、取消、重试、超时和断点恢复。
+9. 支持商品信息采集、脚本规划、分镜审核、素材处理、数字人匹配和视频渲染等智能成片流程。
+10. 至少接入一个真实远程视频生成 API Provider，生成可探测、可播放、可下载的视频产物。
+11. 支持本地 Demo Provider 和真实 Provider，但两者使用同一套业务接口且生产环境禁止 Demo Provider。
+12. 支持 Docker Compose 本地完整运行，并具备迁移到生产环境的部署边界。
+13. 让一次 Agent Run 的每个关键状态、事件、工具调用和产物都可追踪、可重放、可审计。
 
 ### 1.2 复现边界
 
@@ -44,6 +54,9 @@ MAA API / SSE 协议
 - 用固定返回值伪装真实工具，却没有 Provider 接口和切换机制。
 - 只实现 happy path，不处理重复请求、取消、超时、失败和恢复。
 - 只能单独运行 Agent，无法接入 WiseCut Go 后端现有协议。
+- 只能通过 WiseCut 页面使用，不能作为独立产品完成项目创建、素材上传和视频交付。
+- Demo Provider 只返回示例 URL，却把工作包标记为真实视频生成完成。
+- LangGraph、LLM、Tool 和 Provider 各自有代码，但 API 到 Worker 到 Graph 的运行链没有真实闭环。
 - 只跑单元测试，没有真实 HTTP、SSE 和 Docker 联调测试。
 
 ## 2. 现有系统事实
@@ -186,40 +199,24 @@ data: {"seq":12,"payload":{}}
 ## 3. 最终系统架构
 
 ```text
-                    ┌──────────────────────┐
-                    │ WiseCut 用户端       │
-                    │ wise-cut             │
-                    └──────────┬───────────┘
-                               │ HTTP / SSE
-                    ┌──────────▼───────────┐
-                    │ WiseCut Go 后端      │
-                    │ wisecut              │
-                    └──────────┬───────────┘
-                               │ MAA Protocol
-          ┌────────────────────▼────────────────────┐
-          │ MAA Agent API                           │
-          │ FastAPI + Auth + Idempotency + SSE       │
-          └────────────────────┬────────────────────┘
-                               │
-          ┌────────────────────▼────────────────────┐
-          │ Agent Application                       │
-          │ Profile / Run Manager / Event Adapter   │
-          └────────────────────┬────────────────────┘
-                               │
-          ┌────────────────────▼────────────────────┐
-          │ LangGraph Workflow                      │
-          │ StateGraph + Checkpoint + Interrupt     │
-          └───────┬───────────────┬────────────────┘
-                  │               │
-        ┌─────────▼────────┐ ┌────▼─────────────┐
-        │ LangChain Model  │ │ Domain Tool Bus   │
-        │ Provider Adapter  │ │ Policy / Approval │
-        └─────────┬────────┘ └────┬─────────────┘
-                  │               │
-          ┌───────▼───────────────▼───────────────┐
-          │ External Providers / Local Providers  │
-          │ Research / Material / Avatar / Video │
-          └───────────────────────────────────────┘
+Standalone Vue Web ── Product API / SSE ── Product API Adapter ──┐
+                                                                │
+WiseCut Web ── WiseCut Go ── MAA Protocol ── Compatibility API ──┤
+                                                                ▼
+                                             Shared Application Core
+                                      Project / Conversation / Run / Artifact
+                                                                │
+                                                                ▼
+                                              Agent Application / Event Adapter
+                                                                │
+                                                                ▼
+                                              LangGraph Workflow + Checkpoint
+                                                   │                    │
+                                                   ▼                    ▼
+                                           LangChain Model       Domain Tool Bus
+                                                   └─────────┬──────────┘
+                                                             ▼
+                                            Remote LLM / Material / Video APIs
 
 WiseCut sidecar process (existing Go repository, not this repository):
   wisecut task agent_film_consumer
@@ -238,6 +235,9 @@ WiseCut sidecar process (existing Go repository, not this repository):
 
 `wisecut-agent` 负责：
 
+- 独立产品的用户、项目、素材、上传和交付边界。
+- Standalone Product API 和 Web SSE。
+- WiseCut MAA Compatibility API。
 - Agent 会话和 Run 的生命周期。
 - LangGraph 执行和 Checkpoint 管理。
 - LangChain 模型调用和工具调用。
@@ -245,6 +245,8 @@ WiseCut sidecar process (existing Go repository, not this repository):
 - MAA 事件生产、持久化、重放和 SSE 输出。
 - 业务 Artifact 生成与查询。
 - Profile、Prompt、Tool Policy 和 Provider 配置。
+
+独立 Web 只调用 Product API，不直接伪造 `X-User-ID`、`X-Project-ID` 等 MAA Header。MAA 路由作为兼容适配层存在，不能反向污染独立产品的公开 API 设计。
 
 `wisecut` 继续负责：
 
@@ -280,12 +282,9 @@ wisecut-agent/
 │   ├── main.py
 │   ├── settings.py
 │   ├── api/
-│   │   ├── health.py
-│   │   ├── conversations.py
-│   │   ├── messages.py
-│   │   ├── runs.py
-│   │   ├── approvals.py
-│   │   └── artifacts.py
+│   │   ├── maa/                  # WiseCut 兼容协议
+│   │   ├── product/              # 独立产品公开 API
+│   │   └── health.py
 │   ├── application/
 │   │   ├── conversation_service.py
 │   │   ├── run_service.py
@@ -323,6 +322,9 @@ wisecut-agent/
 │   │   ├── replay.py
 │   │   └── sse.py
 │   ├── domain/
+│   │   ├── identity.py
+│   │   ├── project.py
+│   │   ├── asset.py
 │   │   ├── agent_film.py
 │   │   ├── profiles.py
 │   │   ├── interaction.py
@@ -334,6 +336,8 @@ wisecut-agent/
 │   │   ├── research.py
 │   │   ├── materials.py
 │   │   ├── digital_human.py
+│   │   ├── tts.py
+│   │   ├── video_webhook.py
 │   │   └── video.py
 │   ├── persistence/
 │   │   ├── models.py
@@ -345,6 +349,15 @@ wisecut-agent/
 │       ├── ssrf.py
 │       ├── redaction.py
 │       └── limits.py
+├── web/
+│   ├── src/api/
+│   ├── src/components/
+│   ├── src/stores/
+│   ├── src/views/projects/
+│   ├── src/views/workbench/
+│   ├── src/views/settings/
+│   ├── package.json
+│   └── vite.config.ts
 ├── migrations/
 ├── tests/
 │   ├── unit/
@@ -368,8 +381,22 @@ wisecut-agent/
 ### 5.1 核心表
 
 ```text
+user_account
+  id, email, password_hash, display_name, status, created_at, updated_at
+
+workspace
+  id, owner_user_id, name, created_at, updated_at
+
+project
+  id, workspace_id, owner_user_id, title, mode, status,
+  aspect_ratio, duration_seconds, language, created_at, updated_at
+
+asset
+  id, project_id, owner_user_id, asset_type, storage_key, public_url,
+  mime_type, size_bytes, duration_seconds, metadata_json, created_at
+
 conversation
-  id, user_id, profile_id, title, status, metadata_json,
+  id, user_id, project_id, profile_id, title, status, metadata_json,
   created_at, updated_at
 
 run
@@ -393,7 +420,7 @@ approval
   status, decision_json, expires_at, created_at, resolved_at
 
 artifact
-  id, conversation_id, run_id, artifact_type, uri, metadata_json,
+  id, project_id, conversation_id, run_id, artifact_type, uri, metadata_json,
   payload_json, status, created_at
 
 tool_execution
@@ -452,6 +479,14 @@ Artifact id          <-> artifact.id
 ```
 
 RabbitMQ 发布失败不能回滚已经提交的业务事实，Outbox Worker 必须可重试；重复发布由 `command_id`、`run_id` 和幂等消费保护。
+
+### 5.5 独立产品所有权边界
+
+- Standalone 请求必须从认证主体解析 `user_id`，禁止使用固定 `1001/2001` 回退值。
+- `workspace -> project -> asset/conversation/artifact` 必须形成明确所有权链。
+- MAA Compatibility API 可以从受信任 Header 映射到内部主体，但必须使用服务间认证，并隔离于浏览器公开路由。
+- Product API 返回资源前必须验证用户和 workspace/project 归属。
+- 上传采用预签名或受控代理上传；对象存储 key 不由客户端任意指定。
 
 ## 6. Agent 状态设计
 
@@ -575,6 +610,25 @@ output_schema_version
 
 每次 Run 必须保存实际使用的模型、Prompt 版本、工具集合和关键参数，确保结果可复现和可审计。
 
+### 7.5 运行时闭环要求
+
+以下链路必须由真实集成测试证明，不能以模块单测替代：
+
+```text
+Product/MAA API 写入消息和 Run
+  -> Outbox 发布 RabbitMQ RunCommand
+  -> Worker 获取 Conversation lock
+  -> GraphRunner 执行 LangGraph astream/ainvoke
+  -> 节点调用真实 LLM/Tool/Provider
+  -> interaction 使用 interrupt() 暂停
+  -> 用户答案通过 Command(resume=...) 恢复同一 thread/checkpoint
+  -> 媒体节点生成真实 Artifact
+  -> run.completed terminal event
+  -> SSE after_seq 可重放完整轨迹
+```
+
+Worker 默认 handler 不允许保留 no-op；`GraphRunner` 不允许保留 stub；交互节点不能通过直接连 `END` 冒充 interrupt/resume。
+
 ## 8. 工具系统
 
 ### 8.1 工具契约
@@ -648,6 +702,17 @@ RealVideoRenderProvider
 ```
 
 Demo Provider 只用于本地完整联调，不允许隐藏在生产配置中。生产环境必须显式选择真实 Provider 或明确拒绝启动。
+
+独立产品必须至少实现以下非 Demo Provider：
+
+```text
+OpenAICompatibleLLMProvider  真实脚本和分镜结构化生成
+ObjectStorageAssetProvider   使用用户上传和对象存储素材
+RemoteVideoProvider          调用真实视频生成 API，返回远程 task id
+RemoteVideoCallbackAdapter   Webhook/轮询、状态映射、幂等回调和产物归档
+```
+
+视频 Provider 必须支持异步提交、查询、Webhook 或轮询、取消、超时、幂等回调、错误映射和费用记录。具体供应商通过 Adapter 接入，领域层不得绑定某一家 SDK。
 
 ### 8.4 工具执行隔离
 
@@ -744,6 +809,34 @@ GET /runs/{run_id}/events?after_seq=0&live=true
 ```
 
 同时写入 Artifact 表，支持通过 `/artifacts/{artifact_id}` 查询完整数据。
+
+### 9.6 Standalone Product API
+
+公开给独立 Web 的 API 使用版本前缀，并与 MAA Compatibility API 分离：
+
+```http
+POST   /api/v1/auth/register
+POST   /api/v1/auth/login
+GET    /api/v1/me
+GET    /api/v1/projects
+POST   /api/v1/projects
+GET    /api/v1/projects/{project_id}
+PATCH  /api/v1/projects/{project_id}
+DELETE /api/v1/projects/{project_id}
+POST   /api/v1/projects/{project_id}/assets
+GET    /api/v1/projects/{project_id}/assets
+POST   /api/v1/projects/{project_id}/runs
+GET    /api/v1/runs/{run_id}
+GET    /api/v1/runs/{run_id}/events
+POST   /api/v1/interactions/{interaction_id}/responses
+POST   /api/v1/runs/{run_id}/cancel
+GET    /api/v1/projects/{project_id}/artifacts
+GET    /api/v1/artifacts/{artifact_id}/download
+GET    /api/v1/providers
+PUT    /api/v1/provider-settings
+```
+
+Product API 必须提供浏览器可用的认证、资源所有权校验、上传限制、分页和稳定错误模型；不能要求浏览器构造 MAA 服务间 Header。
 
 ## 10. 运行、任务和恢复
 
@@ -845,6 +938,7 @@ wise-cut
 oss-admin
 wisecut-api
 wisecut-agent-film-consumer
+wisecut-agent-web
 wisecut-agent
 mysql
 redis
@@ -893,6 +987,29 @@ production
 ```
 
 所有环境必须通过启动时配置校验，缺少必需凭证、队列、数据库或对象存储时 readiness 失败。
+
+### 13.4 Standalone Web
+
+独立前端采用 Vue 3 + TypeScript + Vite，与现有 WiseCut Agent Film 页面保持协议概念一致，但不依赖 WiseCut 的账户、钱包、主题包、上传组件和全局状态。
+
+必须交付以下页面和状态：
+
+```text
+登录与本地开发身份
+项目列表与新建项目
+创作输入与素材上传
+Agent 对话和运行时间线
+商品信息确认卡
+脚本与分镜审核/编辑
+生成确认和取消
+素材/数字人选择
+视频生成进度
+最终视频预览、下载和重新生成
+运行历史、失败详情和重试
+模型与 Provider 设置
+```
+
+前端必须使用真实 Product API 和 SSE，不在浏览器内硬编码 Demo 状态。核心布局必须在桌面和移动视口通过 Playwright 截图与交互验证。
 
 ## 14. 测试策略
 
@@ -974,6 +1091,19 @@ WiseCut 前端
 
 每种故障都要有预期状态、事件、告警和恢复动作。
 
+### 14.7 独立产品端到端测试
+
+至少覆盖：
+
+1. 注册/登录并创建项目。
+2. 上传图片、视频或文档素材。
+3. Quick 模式从输入到远程视频 API 产物下载。
+4. Deep 模式完成商品确认、脚本/分镜审核和生成确认。
+5. 浏览器刷新和 SSE 断线后恢复同一 Run。
+6. 用户取消、Provider 失败、重试和重新生成。
+7. 两个用户之间的项目、素材、Run 和 Artifact 隔离。
+8. WiseCut MAA 兼容链路在独立产品改造后继续通过。
+
 ## 15. 完成验收标准
 
 ### 15.1 功能验收
@@ -1033,20 +1163,16 @@ SSE 续传成功率：> 99%
 
 ## 16. 实施顺序
 
-实施顺序不是“先做一个简化版”，而是按照最终架构的依赖关系交付：
+WP-00 至 WP-10 已产生协议、基础设施和领域模块，但 2026-10-14 重基线审计确认运行链尚未闭环。后续顺序以以下工作包为准：
 
-1. 固化 MAA OpenAPI、事件 Schema、状态机和数据库迁移规范。
-2. 建立 FastAPI、PostgreSQL、RabbitMQ、Redis、Outbox 和统一错误模型。
-3. 建立 Conversation、Run、Message、Event、Interaction、Approval、Artifact 持久化。
-4. 建立 LangGraph State、Checkpoint、Worker 和 Run 恢复机制。
-5. 建立 MAA API 与 LangGraph Event Adapter。
-6. 建立 Tool Registry、Policy、Approval 和 Provider 抽象。
-7. 实现 Agent Film 完整主图和 Quick/Deep Profile。
-8. 实现商品、脚本、分镜、素材、数字人和视频工具。
-9. 接入 Demo Provider，并完成三仓库端到端联调。
-10. 接入真实 LLM Provider 和可选的第三方媒体 Provider。
-11. 完成安全、可观测性、限流、重试、压测和生产 Docker 镜像。
-12. 完成全量测试、离线 Agent 评估、故障注入、部署文档、架构图、故障手册和面试材料。
+1. `WP-11`：清零工程质量债，并闭合 API -> Queue -> Worker -> LangGraph -> HITL -> Artifact 运行链。
+2. `WP-12`：实现独立产品的用户、workspace、project、asset、Product API 和浏览器认证。
+3. `WP-13`：实现独立 Vue 3 Agent Film Web。
+4. `WP-14`：接入真实 LLM 和至少一个真实远程视频生成 API Provider。
+5. `WP-15`：验证并修复 WiseCut MAA Compatibility API 和 Go Consumer 全链路。
+6. `WP-16`：完成独立产品和 WiseCut 双模式 Docker 编排、环境配置与本地启动。
+7. `WP-17`：完成单元、契约、真实依赖集成、Playwright E2E、Agent 评估、故障注入和压测。
+8. `WP-18`：完成 staging/production 发布、监控、告警、备份、灰度和回滚。
 
 每一步都必须保持前一步的契约兼容，不允许通过临时接口绕过 MAA 协议。
 
@@ -1069,16 +1195,20 @@ SSE 续传成功率：> 99%
 4. 可恢复的 Session / Run / Event / Artifact 系统
 5. Tool Registry、Approval 和 Provider 系统
 6. 本地 Demo Provider
-7. 可选真实模型和媒体 Provider
-8. Docker Compose 四仓库联调环境
-9. PostgreSQL/Redis/Artifact 迁移和初始化脚本
-10. 单元、契约、集成和端到端测试
-11. 架构、部署、排障和面试学习文档
-12. 生产化安全、监控和故障恢复能力
-13. 面向其他编程智能体的 `AGENTS.md`、开发流程、协议来源地图、联调指南和启动指令
+7. 独立 Product API、用户/项目/素材系统
+8. Vue 3 独立 Agent Film Web
+9. 真实 OpenAI-compatible LLM Provider
+10. 真实远程视频生成 Provider、Webhook/轮询和产物归档
+11. 可选第三方模型、素材、数字人和视频 Provider
+12. 独立产品与 WiseCut 双模式 Docker 环境
+13. PostgreSQL/RabbitMQ/Redis/Object Storage 迁移和初始化脚本
+14. 单元、契约、集成、Playwright 和端到端测试
+15. 架构、部署、排障和面试学习文档
+16. 生产化安全、监控和故障恢复能力
+17. 面向其他编程智能体的 `AGENTS.md`、开发流程、协议来源地图、联调指南和启动指令
 ```
 
-完成这些交付物后，项目才算达到“MAA Agent 平台复现完成”，而不是只完成一个能对话的 Agent Demo。
+完成这些交付物后，项目才算达到“独立 Agent Film 产品完成，并保持 MAA 兼容”，而不是只完成一个能对话或返回示例视频 URL 的 Agent Demo。
 
 ## 19. 实现前置产物和每阶段出口条件
 
@@ -1125,13 +1255,16 @@ SSE 续传成功率：> 99%
 
 必须提交：
 
+- Standalone Web 和 Product API。
+- 独立用户、项目、素材和 Artifact 数据链。
+- 真实远程视频 API 生成、回调/轮询和可下载产物证据。
 - `wisecut` 的本地 Agent 配置变更。
 - 四仓库 Compose 编排。
 - 真实前端操作录屏或测试报告。
 - Go Consumer 事件落库验证。
 - 失败、取消、重试、断线恢复报告。
 
-出口条件：从用户端页面开始，完成一次完整 Agent Film 流程，并在 Go 后端的项目、素材、分镜和最终视频字段中得到正确结果。
+出口条件：独立 Web 能完成一次真实 MP4 生成和下载；WiseCut 用户端也能完成一次兼容流程，并在 Go 后端的项目、素材、分镜和最终视频字段中得到正确结果。
 
 ### 19.5 生产阶段出口
 
@@ -1152,3 +1285,42 @@ SSE 续传成功率：> 99%
 允许的实现细节调整包括：节点内部 Prompt 写法、Provider SDK 选择、目录内部拆分和具体 SQL 索引优化；这些调整不能改变已冻结的外部协议和状态不变量。
 
 从本文件进入编码阶段后，任何“临时先绕过”的实现都必须标注为待收敛项，不能作为完成状态合并。
+
+## 21. 2026-10-14 正式重基线
+
+### 21.1 重基线原因
+
+WP-01 至 WP-10 已实现大量协议、持久化、Worker、Graph、Tool、领域和安全模块，但完成状态主要由局部单元测试支持。代码审计确认项目尚未形成可执行的端到端 Agent Film 产品，因此从本节起以“独立产品 + MAA 兼容适配器”为新基线。
+
+### 21.2 已确认事实
+
+- `pytest -q`：331 passed，说明已有局部模块测试稳定。
+- `mypy app`：187 errors in 35 files，不能声称 type check 通过。
+- 当前环境找不到 `ruff`，不能声称 lint 已执行通过。
+- `pyproject.toml` 使用宽松 `>=` 依赖且仓库没有锁文件，不能声称依赖已固定。
+- Worker 默认使用 no-op handler，没有注入 `GraphRunner`。
+- `GraphRunner._execute_graph()` 仍是 stub，没有调用 LangGraph `ainvoke/astream`。
+- interaction response 只落库，没有 `Command(resume=...)` 恢复 Graph。
+- 当前业务脚本和分镜采用启发式规则，LLM Factory 尚未接入业务节点。
+- Real Research/Material/DigitalHuman/Video Provider 均返回 `not_implemented`。
+- Demo 视频返回 `example.com` URL，不构成真实视频交付。
+- 权限校验函数尚未接入 API 路由，部分 MAA API 缺 Header 时回退固定 `1001/2001`。
+- RabbitMQ 本地默认 URL 使用管理端口 `15675`，应按 AMQP 映射核对为 `15676`。
+- 当前本地分支比 GitHub `origin/main` 超前 10 个 commit，继续跨环境开发前必须先决定是否推送。
+
+### 21.3 状态解释
+
+历史 commit 和已实现模块继续保留，不回滚、不伪造历史。`execution.md` 中被重新标为 `[~]` 的工作包表示“已有实现，但未满足最终出口条件”，后续在 WP-11 统一闭环和纠偏。
+
+### 21.4 新完成定义
+
+项目只有同时满足以下条件才能称为独立 Agent Film 产品：
+
+1. 独立 Web 不依赖 WiseCut 即可登录、建项目、上传素材并开始 Run。
+2. Worker 实际执行 LangGraph，HITL 使用 interrupt/resume 恢复同一 Checkpoint。
+3. 脚本和分镜至少可使用一个真实 OpenAI-compatible LLM 生成。
+4. 远程视频 Provider 能生成真实、可探测、可播放、可下载的视频产物。
+5. Product API 与 MAA Compatibility API 共用同一领域内核且各自鉴权正确。
+6. PostgreSQL、RabbitMQ、Redis、对象存储和视频 Provider 沙箱/测试账号完成真实集成验证。
+7. 独立 Web 和 WiseCut 兼容链路都通过端到端测试。
+8. lint、type check、unit、contract、integration、E2E 均有真实通过输出。

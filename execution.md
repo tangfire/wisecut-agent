@@ -58,23 +58,29 @@ docs(agent): update deployment and troubleshooting
 | --- | --- | --- | --- | --- |
 | WP-00 仓库和执行基线 | 1、16、17、20 | [x] | `b338d72` | 文档基线已提交 |
 | WP-01 MAA 协议冻结 | 2、2.1、9 | [x] | `e1ed9c3` | OpenAPI、27 Schema、17 Fixture、115 契约测试 |
-| WP-02 基础工程和配置 | 3.2、12、13、13.3 | [x] | `d833500` | FastAPI、配置、日志、健康检查、126 tests |
-| WP-03 持久化和迁移 | 5、5.3、5.4 | [x] | `1fe860c` | Repository、UoW、Checkpoint、Outbox、139 tests |
-| WP-04 MAA API 和事件流 | 9、10.1 | [x] | `待提交` | Conversation、Message、Run、SSE、Approval、Artifact |
-| WP-05 Worker 和恢复机制 | 10、10.3、10.4 | [x] | `待提交` | RabbitMQ、锁、取消、重试、恢复 |
-| WP-06 LangGraph Runtime | 6、7、7.4 | [x] | `85223ef` | StateGraph、Profile、Interrupt、Prompt |
-| WP-07 Tool 和 Provider 平台 | 8、8.4 | [x] | `9644222` | Tool Registry、审批、Provider |
-| WP-08 Agent Film 业务图 | 7.1、7.2、7.3 | [x] | `4f0467f` | 商品、策略、脚本、分镜、生成 |
-| WP-09 媒体和 Artifact 能力 | 8.2、8.3、9.5 | [x] | `765847f` | 素材、数字人、视频、产物回填 |
-| WP-10 安全和可观测性 | 11、12 | [x] | `1cb257f` | SSRF、权限、Trace、指标、审计 |
-| WP-11 Docker 和环境 | 13、13.3 | [ ] | - | Demo、LLM、Staging、生产配置 |
-| WP-12 测试和质量评估 | 14、14.5、14.6、15.4 | [ ] | - | 契约、集成、E2E、评估、故障注入 |
-| WP-13 四仓库联调 | 15.1、15.2、19.4 | [ ] | - | WiseCut 前端到 Go 到 MAA 全链路 |
-| WP-14 生产交付 | 13.2、15.3、19.5 | [ ] | - | 发布、压测、告警、回滚、文档 |
+| WP-02 基础工程和配置 | 3.2、13 | [~] | `d833500` | 基础已实现；缺锁文件，ruff 未安装，mypy 187 errors |
+| WP-03 持久化和迁移 | 5、5.3、5.4 | [~] | `1fe860c` | Repository/UoW 已实现；缺真实 PostgreSQL/Checkpoint 恢复验收 |
+| WP-04 MAA API 和事件流 | 9、10.1 | [x] | `e745158` | MAA 兼容 API 表面完成；运行闭环归 WP-11 |
+| WP-05 Worker 和恢复机制 | 10、10.3、10.4 | [~] | `5520c2d` | 队列/锁模块存在；Worker 默认 handler 仍为 no-op |
+| WP-06 LangGraph Runtime | 6、7.4、7.5 | [~] | `85223ef` | Graph 结构存在；GraphRunner 和 interrupt/resume 未闭环 |
+| WP-07 Tool 和 Provider 平台 | 8、8.4 | [~] | `9644222` | Registry/Policy 存在；尚未接入真实 Graph 执行链 |
+| WP-08 Agent Film 业务图 | 7.1、7.2、7.3 | [~] | `4f0467f` | 领域函数存在；当前为启发式且没有真实 LLM/Graph 执行 |
+| WP-09 媒体和 Artifact 能力 | 8.2、8.3、9.5 | [~] | `765847f` | Demo 流程存在；Real Provider 未实现，没有真实 MP4 |
+| WP-10 安全和可观测性 | 11、12 | [~] | `1cb257f` | 模块存在；鉴权未接入路由，固定身份 fallback 未移除 |
+| WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [~] | - | 当前工作包；修复 Worker/Graph/HITL/LLM/静态检查 |
+| WP-12 独立产品领域与 Product API | 5.5、9.6 | [ ] | - | 用户、workspace、project、asset、认证、上传 |
+| WP-13 独立 Vue Agent Film Web | 13.4 | [ ] | - | 项目、工作台、交互卡、视频预览下载 |
+| WP-14 真实 LLM 与视频生成 API | 7.4、8.3 | [ ] | - | OpenAI-compatible、远程视频任务、Webhook/轮询、产物归档 |
+| WP-15 WiseCut MAA 兼容联调 | 2.1、19.4 | [ ] | - | Go API/Consumer/前端兼容链路 |
+| WP-16 Docker 和环境 | 13 | [ ] | - | 独立产品与 WiseCut 双模式 Compose |
+| WP-17 测试和质量评估 | 14、15.4 | [ ] | - | 真实依赖、Playwright、评估、故障注入、压测 |
+| WP-18 生产交付 | 13.2、19.5 | [ ] | - | staging、监控、备份、灰度、回滚 |
 
-当前工作包：`WP-10`
+当前工作包：`WP-11`
 
-当前下一步：执行 `WP-11 Docker 和环境`。
+当前下一步：执行 `WP-11 运行时闭环与质量纠偏`，在此之前不要开始独立前端。
+
+> 重基线说明：WP-02 至 WP-10 明细中的历史 `[x]` 保留为“当时已实现/已测试的局部任务”记录；总体表和章节状态为 `[~]` 时，表示该工作包尚未满足新的最终出口条件，不得据此宣称整体完成。
 
 ## 3. 工作包明细
 
@@ -82,7 +88,7 @@ docs(agent): update deployment and troubleshooting
 
 对应计划：`plan.md` 第 1、16、17、20 节。
 
-状态：`[~]`
+状态：`[x]`
 
 已完成：
 
@@ -175,12 +181,19 @@ docs(agent): update deployment and troubleshooting
 
 目标：建立可启动的 FastAPI 应用骨架，包含配置管理、健康检查、结构化日志和数据库引擎。
 
-状态：`[x]`
+状态：`[~]`（2026-10-14 重基线重新打开）
+
+重基线未闭环：
+
+- [ ] 生成并提交可复现的依赖锁文件；当前 `pyproject.toml` 仍使用宽松 `>=`。
+- [ ] 在项目环境安装并真实运行 `ruff`。
+- [ ] 修复 `mypy app` 当前 187 个错误并取得通过输出。
+- [ ] 建立实际 CI workflow，而不只是工具配置段。
 
 已完成：
 
-- [x] 创建 `pyproject.toml` 和锁文件（依赖版本已固定）。
-- [x] 固定 Python、LangChain、LangGraph、FastAPI、Pydantic 和数据库驱动版本。
+- [~] 已创建 `pyproject.toml`；锁文件尚未创建。
+- [~] 已声明 Python 和依赖版本下限；尚未固定可复现版本集合。
 - [x] 建立应用配置、环境变量和启动校验（`app/settings.py`）。
 - [x] 建立 `local-demo`、`local-llm`、`staging`、`production` 配置。
 - [x] 建立 FastAPI 应用入口和统一错误模型（`app/main.py`）。
@@ -194,13 +207,13 @@ docs(agent): update deployment and troubleshooting
 - [x] 新环境可按 README 创建虚拟环境并安装锁定依赖（`pip install -e ".[dev]"` 通过）。
 - [x] 配置缺失时 readiness 正确失败（`validate_or_exit` 在非 pytest 环境下启动时校验）。
 - [x] 健康检查不依赖 LLM 长任务（/health 返回纯内存状态）。
-- [x] lint、type check、unit test 通过（126 passed）。
+- [!] 历史记录只有 126 个 pytest 通过；本次审计发现 ruff 未安装、mypy 有 187 个错误。
 
 出口条件：
 
 - [x] API 服务可以启动（ASGI app 创建成功，8 个 MAA 端点 + 3 个健康端点注册）。
 - [x] Worker 启动入口已定义（`ENABLE_WORKER` 配置项，Worker 进程将在 WP-05 实现）。
-- [x] CI 可以执行静态检查和基础测试（ruff/mypy/pytest 配置已就绪）。
+- [~] ruff/mypy/pytest 配置段已存在；实际 CI workflow 和通过输出待补。
 - [x] execution 更新为 `[x]` 并记录 commit。
 
 完成 commit：`d833500`
@@ -228,7 +241,13 @@ docs(agent): update deployment and troubleshooting
 
 目标：建立完整的持久化层，包括 Repository、Unit of Work、Checkpoint Saver 和 Outbox。
 
-状态：`[x]`
+状态：`[~]`（2026-10-14 重基线重新打开）
+
+重基线未闭环：
+
+- [ ] 使用真实 PostgreSQL 执行 upgrade、downgrade、重启恢复和唯一约束测试。
+- [ ] 验证 Checkpoint Saver 与当前 LangGraph 版本的真实调用接口兼容。
+- [ ] 验证 Outbox 在数据库提交成功、RabbitMQ 暂时不可用时可恢复发布。
 
 已完成：
 
@@ -245,17 +264,17 @@ docs(agent): update deployment and troubleshooting
 
 验证：
 
-- [x] 空库可以完成迁移（Alembic 迁移脚本已编写，11 张表）。
-- [x] 重复迁移不会破坏数据（downgrade 函数已实现）。
-- [x] 回滚脚本在测试数据库通过。
+- [~] Alembic 迁移脚本已编写（11 张表）；真实 PostgreSQL 空库迁移待验证。
+- [~] downgrade 函数已实现；重复迁移与真实回滚待验证。
+- [ ] 回滚脚本在真实 PostgreSQL 测试数据库通过。
 - [x] 事务失败不会留下半条业务事实（UnitOfWork 使用 try/except + rollback）。
 - [x] Checkpoint 与 Run 映射可查询（CheckpointRepository 支持 thread_id 查询）。
-- [x] 数据库重启后数据仍可恢复。
+- [ ] 数据库重启后 Run、Checkpoint、Outbox 数据仍可恢复。
 
 出口条件：
 
 - [x] 所有核心表和索引已迁移（11 张表，含完整索引和唯一约束）。
-- [x] Repository 集成测试通过（13 个 repository 单元测试全部通过）。
+- [~] 13 个 repository 单元测试通过；真实 PostgreSQL 集成测试待补。
 - [x] execution 更新为 `[x]` 并记录 commit。
 
 完成 commit：`1fe860c`
@@ -321,7 +340,7 @@ docs(agent): update deployment and troubleshooting
 - [x] API 不直接执行长时间 Agent 工作流
 - [x] 集成测试覆盖创建会话、发送消息、幂等、SSE、取消、审批 404
 
-完成 commit：`85223ef`
+完成 commit：`e745158`（仅表示 MAA 兼容 API 表面完成；端到端运行闭环归 WP-11）
 
 验证记录：
 
@@ -348,7 +367,14 @@ docs(agent): update deployment and troubleshooting
 
 对应计划：`plan.md` 第 10、10.3、10.4 节。
 
-状态：`[x]`
+状态：`[~]`（2026-10-14 重基线重新打开）
+
+重基线未闭环：
+
+- [ ] `start_worker_thread()` 注入真实 `GraphRunner` handler。
+- [ ] 删除只写 `waiting_interaction` 的 `_default_handler` 完成路径。
+- [ ] 使用真实 RabbitMQ 验证 publish、consume、retry、DLQ、ack/nack 和重启恢复。
+- [ ] 修正本地 RabbitMQ AMQP 端口；不能使用管理端口 `15675` 建立 AMQP 连接。
 
 已完成：
 
@@ -385,7 +411,7 @@ docs(agent): update deployment and troubleshooting
 - [x] 启动时恢复非终态 Run
 - [x] 取消 flag 通过 Redis 传播
 
-完成 commit：`85223ef`
+完成 commit：`5520c2d`（Worker 基础设施 commit；最终出口条件未满足）
 
 验证记录：
 
@@ -412,7 +438,15 @@ docs(agent): update deployment and troubleshooting
 
 对应计划：`plan.md` 第 6、7、7.4 节。
 
-状态：`[x]`
+状态：`[~]`（2026-10-14 重基线重新打开）
+
+重基线未闭环：
+
+- [ ] 用 `ainvoke/astream` 替换 `GraphRunner._execute_graph()` stub。
+- [ ] 使用 LangGraph `interrupt()` 产生等待交互状态。
+- [ ] interaction response 使用 `Command(resume=...)` 恢复同一 thread/checkpoint。
+- [ ] 修复生成确认节点到媒体流水线的可达路径。
+- [ ] 持久化并重放节点事件、状态和 terminal event。
 
 已完成：
 
@@ -421,8 +455,8 @@ docs(agent): update deployment and troubleshooting
 - [x] 建立 graph builder 和节点注册机制 (`AgentFilmGraphBuilder`)
 - [x] 建立 Quick/Deep Profile 配置 (`QUICK_PROFILE`, `DEEP_PROFILE`)
 - [x] 建立 `thread_id`、Run 和 Checkpoint 绑定准备（`PostgreSQLCheckpointSaver` 已实现）
-- [x] 实现 `interrupt()` 和 `Command(resume=...)` 基础设施（interrupt nodes 标记）
-- [x] 实现 graph stream 到 MAA event 的转换基础设施 (`GraphRunner`)
+- [~] 已定义交互节点标记；尚未实现真实 `interrupt()` 和 `Command(resume=...)`。
+- [~] 已创建 `GraphRunner` 类；真实 graph stream 到 MAA event 转换尚未实现。
 - [x] 实现 `run.started` 事件发射
 - [x] 建立 Prompt Registry (`PROMPT_REGISTRY` 含 3 个默认 profile)
 - [x] 建立 Prompt version、Model version 和 Schema version 记录 (`PromptProfile` dataclass)
@@ -443,13 +477,13 @@ docs(agent): update deployment and troubleshooting
   * LLM Factory: demo, openai-compatible, unknown provider error
   * Prompt Profiles: get by name, unknown fallback
   * Graph Builder: build default graph, add nodes/edges
-- [x] Graph 可以从 START 执行到 END（build_default_graph 返回 compiled graph）
-- [x] Graph 在 interaction 节点正确暂停（interrupt=True 标记）
+- [~] `build_default_graph` 可以编译；尚未证明 Worker 从 START 真实执行到 END。
+- [ ] Graph 使用真实 `interrupt()` 在 interaction 节点暂停。
 - [x] Profile 配置正确影响路由（quick 跳过 confirmation，deep 执行 confirmation）
 
 出口条件：
 
-- [x] LangGraph Runtime 单元测试通过（23 passed）
+- [~] LangGraph 结构单元测试 23 passed；真实 Runtime 闭环测试待补。
 - [x] AgentFilmState 定义完整，符合 plan.md §6
 - [x] Quick/Deep Profile 配置完整，影响路由行为
 - [x] Graph builder 注册 13 个节点和完整边
@@ -486,7 +520,13 @@ docs(agent): update deployment and troubleshooting
 
 对应计划：`plan.md` 第 8、8.4 节。
 
-状态：`[x]`
+状态：`[~]`（2026-10-14 重基线重新打开）
+
+重基线未闭环：
+
+- [ ] 将 Tool Registry/Executor 接入真实 Graph 节点，而不是只做模块测试。
+- [ ] 审批决定恢复被暂停的 Graph，而不是只写 approval 事件。
+- [ ] 使用真实数据库验证 ToolExecution、事件顺序、重试和幂等。
 
 已完成：
 
@@ -550,7 +590,14 @@ docs(agent): update deployment and troubleshooting
 
 对应计划：`plan.md` 第 7.1、7.2、7.3 节。
 
-状态：`[x]`
+状态：`[~]`（2026-10-14 重基线重新打开）
+
+重基线未闭环：
+
+- [ ] 创意策略、脚本和分镜接入真实 LangChain LLM 和结构化输出。
+- [ ] 启发式实现只作为 Demo fallback，不能作为 production 主路径。
+- [ ] Quick/Deep 两条 Graph 从输入实际运行到生成确认。
+- [ ] 用户修改、换一批和重新生成通过 resume 后真实影响后续状态。
 
 已完成：
 
@@ -627,7 +674,15 @@ docs(agent): update deployment and troubleshooting
 
 对应计划：`plan.md` 第 8.2、8.3、9.5 节。
 
-状态：`[x]`
+状态：`[~]`（2026-10-14 重基线重新打开）
+
+重基线未闭环：
+
+- [ ] 将 WP-09 完成语义明确为 Demo pipeline，不再声称 Real Provider 已完成。
+- [ ] 接入至少一个真实远程视频生成 API Provider。
+- [ ] 实现异步 task id、Webhook/轮询、取消、超时、幂等回调和费用记录。
+- [ ] 将生成产物归档到对象存储并完成可访问性、格式和时长校验。
+- [ ] 真实视频 Artifact 进入 `business.message(final_video)` 和 terminal event。
 
 已完成：
 
@@ -647,10 +702,10 @@ docs(agent): update deployment and troubleshooting
 
 - [x] 21 个 WP-09 单元测试全部通过
 - [x] 290 个总测试全部通过（无回归）
-- [x] Demo Provider 产生完整最终视频 Artifact（DemoVideoRenderProvider 返回 video_url + cover_url）
+- [~] Demo Provider 返回结构完整的 video_url/cover_url 字段，但 URL 是 `example.com` 示例值，不是真实视频。
 - [x] 非法视频 URL（空、localhost、127.0.0.1、0.0.0.0、::1、无协议）不会标记为 completed
 - [x] Artifact 创建正确写入 Artifact 表 + artifact.created 事件 + business.message 事件 + Outbox
-- [x] 重复回调幂等：Outbox 使用 `command_id + run_id` 幂等键
+- [~] Outbox 有幂等设计；真实 Provider 重复/乱序回调测试待 WP-14 完成。
 - [x] IPv6 loopback `[::1]` 被正确识别为内部地址
 - [x] Graph 编译成功，13 个节点（含 5 个 WP-09 媒体节点）完整注册
 
@@ -658,7 +713,7 @@ docs(agent): update deployment and troubleshooting
 
 - [x] 媒体 pipeline 5 个节点全部实现并测试
 - [x] artifact.created 和 business.message(final_video) 事件通过契约测试
-- [x] Demo Provider 产生可访问的示例媒体 URL
+- [ ] 真实 Provider 产生可访问、可播放、可归档的视频 URL。
 - [x] 视频 URL 校验防止 SSRF（IPv4 + IPv6 内网地址）
 - [x] execution 更新为 `[x]` 并记录 commit。
 
@@ -687,12 +742,19 @@ docs(agent): update deployment and troubleshooting
 
 对应计划：`plan.md` 第 11、12 节。
 
-状态：`[x]`
+状态：`[~]`（2026-10-14 重基线重新打开）
+
+重基线未闭环：
+
+- [ ] 在全部资源路由实际调用 `verify_conversation_access`、`verify_run_access` 和 `verify_artifact_access`。
+- [ ] 移除公开路由缺 Header 时固定回退 `user_id=1001/project_id=2001` 的行为。
+- [ ] MAA Compatibility API 增加服务间认证；Product API 使用真实用户认证。
+- [ ] 在真实 FastAPI/SQLAlchemy 请求链验证 Trace、指标、脱敏、限流和审计。
 
 已完成：
 
 - [x] 实现 SSRF 防护（`app/security/ssrf.py`）— 协议检查、IPv4 私有/回环/链路本地地址、IPv6 bracket literal、阻塞端口（22/3306/5432/6379 等）、DNS 解析检查、local-demo 环境允许私有 IP
-- [x] 实现用户/项目/Conversation 权限边界（`app/security/authz.py`）— `verify_conversation_access`、`verify_run_access`、`verify_artifact_access`、MAA Header 提取、空 Header fallback
+- [~] 已实现权限 helper；尚未接入全部 API 路由，空 Header fallback 必须移除。
 - [x] 实现文件上传校验（`app/security/upload.py`）— 单文件大小（50MB）、总大小（200MB）、文件数量（20）、MIME 类型/扩展名检查
 - [x] 实现请求脱敏（`app/core/logging.py`）— `SENSITIVE_FIELDS` frozenset、`RedactingFormatter._redact` 递归脱敏、结构化 JSON 日志
 - [x] 实现 AuditLog Repository（`app/persistence/repositories.py`）— `create`、`get_by_resource`、UoW 集成
@@ -718,7 +780,7 @@ docs(agent): update deployment and troubleshooting
 出口条件：
 
 - [x] SSRF 防护覆盖 IPv4 + IPv6 + 危险端口
-- [x] 权限边界通过 user_id + project_id 双因子校验
+- [~] 权限 helper 单元测试通过；真实 API 越权测试待补。
 - [x] 结构化日志脱敏敏感字段
 - [x] Metrics 覆盖 HTTP/LLM/Tool/Run/SSE/Outbox
 - [x] OpenTelemetry 初始化和自动插桩就绪
@@ -746,7 +808,9 @@ docs(agent): update deployment and troubleshooting
 关联 commit：1cb257f
 ```
 
-### WP-11 Docker 和环境
+### 历史定义：原 WP-11 Docker 和环境（已废止，不执行）
+
+> 2026-10-14 重基线后，Docker 工作移动到新 WP-16。以下内容仅保留历史，不作为当前任务。
 
 对应计划：`plan.md` 第 13、13.3 节。
 
@@ -783,7 +847,9 @@ docs(agent): update deployment and troubleshooting
 
 完成 commit：`待完成`
 
-### WP-12 测试和质量评估
+### 历史定义：原 WP-12 测试和质量评估（已废止，不执行）
+
+> 2026-10-14 重基线后，测试与质量工作移动到新 WP-17。以下内容仅保留历史。
 
 对应计划：`plan.md` 第 14、14.5、14.6、15.4 节。
 
@@ -818,7 +884,9 @@ docs(agent): update deployment and troubleshooting
 
 完成 commit：`待完成`
 
-### WP-13 四仓库联调
+### 历史定义：原 WP-13 四仓库联调（已废止，不执行）
+
+> 2026-10-14 重基线后，WiseCut 兼容联调移动到新 WP-15。以下内容仅保留历史。
 
 对应计划：`plan.md` 第 15.1、15.2、19.4 节。
 
@@ -852,7 +920,9 @@ docs(agent): update deployment and troubleshooting
 
 完成 commit：`待完成`
 
-### WP-14 生产交付
+### 历史定义：原 WP-14 生产交付（已废止，不执行）
+
+> 2026-10-14 重基线后，生产交付移动到新 WP-18。以下内容仅保留历史。
 
 对应计划：`plan.md` 第 13.2、15.3、19.5 节。
 
@@ -886,11 +956,261 @@ docs(agent): update deployment and troubleshooting
 
 完成 commit：`待完成`
 
+### WP-11 运行时闭环与质量纠偏
+
+对应计划：`plan.md` 第 7.5、10、21 节。
+
+状态：`[~]`
+
+目标：让现有 API、Queue、Worker、LangGraph、HITL、Tool 和 Artifact 模块第一次形成真实闭环，并清除阻碍后续产品化的虚假完成状态。
+
+任务：
+
+- [ ] 生成并提交依赖锁文件，修正宽松依赖策略。
+- [ ] 安装并运行 `ruff`，修复全部 lint 错误。
+- [ ] 修复 `mypy app` 当前 187 个错误。
+- [ ] 修正 RabbitMQ AMQP 地址和端口配置。
+- [ ] API 创建/复用 Run 时保存正确的初始输入和 profile。
+- [ ] OutboxPublisher 将 `run.command` 发布到真实 RabbitMQ。
+- [ ] Worker 注入 `GraphRunner` handler，删除 no-op 完成路径。
+- [ ] `GraphRunner` 使用 LangGraph `ainvoke/astream` 执行真实图。
+- [ ] Graph 节点事件投影为稳定 MAA event，并按 seq 落库。
+- [ ] 交互节点使用 `interrupt()` 暂停并持久化 Interaction。
+- [ ] interaction response 使用 `Command(resume=...)` 恢复同一 thread/checkpoint。
+- [ ] approval 决定能够恢复等待审批的 Graph。
+- [ ] 修复生成确认到素材/渲染/Artifact 节点的可达路径。
+- [ ] Run 正确进入 completed/failed/cancelled terminal 状态。
+- [ ] 将权限校验函数接入现有 MAA 路由，移除固定身份 fallback。
+
+验证：
+
+- [ ] `ruff check .` 通过。
+- [ ] `mypy app` 通过。
+- [ ] 全量 pytest 通过，且新增真实运行链测试。
+- [ ] 使用真实 PostgreSQL、RabbitMQ 和 Redis 完成一次 Demo Provider Run。
+- [ ] 交互前 Graph 暂停，提交回答后从同一 Checkpoint 继续。
+- [ ] SSE 事件包含从 run.started 到 terminal event 的完整轨迹。
+- [ ] Worker、API 或 RabbitMQ 重启后 Run 可恢复且不重复终态事件。
+
+出口条件：
+
+- [ ] 不再存在 Worker default no-op、GraphRunner stub 或伪 interrupt。
+- [ ] WP-02、WP-03、WP-05、WP-06、WP-07、WP-08、WP-10 的重基线缺口全部关闭。
+- [ ] execution 更新证据并记录 commit。
+
+完成 commit：`待完成`
+
+### WP-12 独立产品领域与 Product API
+
+对应计划：`plan.md` 第 5.5、9.6 节。
+
+状态：`[ ]`
+
+任务：
+
+- [ ] 新增 UserAccount、Workspace、Project、Asset、ProviderSetting 模型和迁移。
+- [ ] 实现注册、登录、刷新、退出和当前用户接口。
+- [ ] 使用安全密码哈希、短期 access token 和可撤销 refresh token。
+- [ ] 实现项目 CRUD、分页、状态和所有权校验。
+- [ ] 实现素材上传、类型/大小校验、对象存储和项目素材列表。
+- [ ] 实现 Product API 的创建 Run、详情、取消、事件 SSE 和交互回答。
+- [ ] 实现 Artifact 列表、预览、下载和重新生成。
+- [ ] 实现 Provider 能力列表和用户级/部署级配置边界。
+- [ ] Product API 与 MAA Compatibility API 共用 application/domain core，但路由和鉴权分离。
+- [ ] 删除浏览器调用对 MAA Header 的依赖。
+
+验证：
+
+- [ ] 两个用户之间的项目、素材、Run 和 Artifact 完全隔离。
+- [ ] 未登录请求、越权 ID 和伪造 project id 被拒绝。
+- [ ] 上传对象只能进入当前用户/项目命名空间。
+- [ ] Product API 能独立启动一次 Run 并读取 SSE，不经过 WiseCut Go。
+- [ ] MAA 契约测试保持通过。
+
+出口条件：
+
+- [ ] 独立产品后端不依赖 WiseCut 用户、项目、钱包或 MySQL。
+- [ ] OpenAPI 同时区分 Product API 与 MAA Compatibility API。
+- [ ] execution 更新证据并记录 commit。
+
+完成 commit：`待完成`
+
+### WP-13 独立 Vue Agent Film Web
+
+对应计划：`plan.md` 第 13.4 节。
+
+状态：`[ ]`
+
+任务：
+
+- [ ] 在 `web/` 建立 Vue 3 + TypeScript + Vite 工程和锁文件。
+- [ ] 建立认证、路由、API Client、SSE Client 和 Pinia 状态。
+- [ ] 实现项目列表、新建项目和项目状态筛选。
+- [ ] 实现创作输入、链接输入、素材上传和 Quick/Deep 模式。
+- [ ] 实现 Agent 对话、事件时间线、工具状态和失败状态。
+- [ ] 实现商品信息确认、脚本/分镜审核、生成确认等交互卡片。
+- [ ] 实现素材和数字人选择界面。
+- [ ] 实现视频生成进度、最终视频预览、下载、重试和重新生成。
+- [ ] 实现 Provider/模型设置页面，不把 Secret 回显到浏览器。
+- [ ] 实现 SSE 断线续传、浏览器刷新恢复和乐观交互状态。
+- [ ] 为桌面和移动视口建立稳定响应式布局。
+
+验证：
+
+- [ ] lint、typecheck、unit test 和 production build 通过。
+- [ ] Playwright 覆盖登录、创建项目、交互卡、取消、恢复和视频预览。
+- [ ] 截图检查桌面/移动无空白、重叠、溢出和布局跳动。
+- [ ] 前端只调用 Product API，不依赖 WiseCut 路由或 MAA Header。
+
+出口条件：
+
+- [ ] 用户可以只通过独立 Web 完成 Agent Film 全流程。
+- [ ] execution 更新证据并记录 commit。
+
+完成 commit：`待完成`
+
+### WP-14 真实 LLM 与视频生成 API
+
+对应计划：`plan.md` 第 7.4、8.3、9.5 节。
+
+状态：`[ ]`
+
+任务：
+
+- [ ] 将创意策略、脚本和分镜节点接入 OpenAI-compatible LLM。
+- [ ] 使用版本化 Prompt 和 Pydantic/JSON Schema 结构化输出。
+- [ ] 实现模型超时、429、重试、fallback、Token 和费用记录。
+- [ ] 定义供应商无关的 RemoteVideoProvider contract。
+- [ ] 接入至少一个真实视频生成 API Provider。
+- [ ] 实现远程 task id 持久化、状态映射和 Provider 原始响应审计。
+- [ ] 实现签名 Webhook；无 Webhook 时使用带退避的轮询。
+- [ ] 实现回调幂等、乱序回调、重复回调和未知 task 防护。
+- [ ] 实现取消、超时、Provider 失败和人工重试。
+- [ ] 将远程产物安全导入对象存储，不长期依赖临时供应商 URL。
+- [ ] 验证视频 URL、MIME、大小、时长、可播放性和封面。
+- [ ] 产生 Artifact、`business.message(final_video)` 和 terminal event。
+
+验证：
+
+- [ ] 使用测试/沙箱账号真实调用 LLM 和视频 API。
+- [ ] 至少生成一个可在独立 Web 播放和下载的视频。
+- [ ] Webhook 和轮询两条结果路径至少各有契约测试。
+- [ ] Provider Secret 只存在服务端 Secret 配置中。
+- [ ] Demo Provider 不计入本工作包完成证据。
+
+出口条件：
+
+- [ ] WP-08 和 WP-09 的重基线缺口全部关闭。
+- [ ] execution 记录供应商、模型、测试环境、任务 ID 脱敏摘要和产物验证结果。
+- [ ] execution 更新证据并记录 commit。
+
+完成 commit：`待完成`
+
+### WP-15 WiseCut MAA 兼容联调
+
+对应计划：`plan.md` 第 2.1、19.4 节。
+
+状态：`[ ]`
+
+任务：
+
+- [ ] 推送或同步当前本地未推送的 Agent commit，确保联调基线可获取。
+- [ ] 将 WiseCut Docker 配置指向本地/部署后的 MAA Compatibility API。
+- [ ] 将 `agent_film_consumer` 作为独立常驻服务运行。
+- [ ] 验证 Go Client 创建会话、消息、interaction、approval、cancel、artifact 和 SSE。
+- [ ] 验证 Go Consumer 的 remote_last_seq、去重和项目副作用。
+- [ ] 验证 WiseCut 用户端交互卡片和最终视频回写。
+- [ ] 验证独立 Product API 改造没有破坏冻结的 MAA Wire Contract。
+
+验证与出口条件：
+
+- [ ] Go `/api/health`、MAA `/health` 和全部依赖健康。
+- [ ] WiseCut 页面完成一次真实视频生成流程。
+- [ ] MySQL 项目、素材、分镜和最终视频字段正确。
+- [ ] SSE 重连、重复消费、取消和失败恢复通过。
+- [ ] 记录涉及四个仓库的 commit。
+
+完成 commit：`待完成`
+
+### WP-16 Docker 和环境
+
+对应计划：`plan.md` 第 13 节。
+
+状态：`[ ]`
+
+任务：
+
+- [ ] API、Worker、Web 分离镜像和非 root 用户。
+- [ ] 编排 PostgreSQL、RabbitMQ、Redis、MinIO、API、Worker 和 Web。
+- [ ] 提供 `local-demo`、`local-real-provider`、`staging` 和 `production` 配置模板。
+- [ ] 修正宿主机端口和容器服务名，区分 RabbitMQ AMQP 与管理端口。
+- [ ] 提供迁移、初始化、启动、停止、日志和清理命令。
+- [ ] 支持独立产品 Compose 和 WiseCut 联调 Compose 两种模式。
+- [ ] 健康检查覆盖 API、Worker、Queue、DB、Redis、Storage 和 Web。
+
+验证与出口条件：
+
+- [ ] 新机器只凭仓库和环境模板可启动独立产品。
+- [ ] API/Worker 可分别重启和扩容。
+- [ ] 容器数据卷和 Secret 不进入 Git。
+- [ ] execution 更新证据并记录 commit。
+
+完成 commit：`待完成`
+
+### WP-17 测试和质量评估
+
+对应计划：`plan.md` 第 14、15.4 节。
+
+状态：`[ ]`
+
+任务：
+
+- [ ] 运行并通过后端 lint、mypy、unit、contract 和真实依赖 integration。
+- [ ] 运行并通过前端 lint、typecheck、unit、build 和 Playwright。
+- [ ] 覆盖独立 Web 完整流程和 WiseCut 兼容流程。
+- [ ] 建立商品信息、脚本、分镜和工具选择评估集。
+- [ ] 注入 LLM、视频 Provider、RabbitMQ、Redis、PostgreSQL、Worker、SSE 和 Webhook 故障。
+- [ ] 进行并发 Run、长任务、SSE 和队列压测。
+- [ ] 验证 SLO、告警阈值和无未解释 flaky test。
+
+出口条件：
+
+- [ ] 独立产品和 MAA 兼容链路的所有验收证据可复现。
+- [ ] 质量、成本、延迟和恢复报告已提交。
+- [ ] execution 更新证据并记录 commit。
+
+完成 commit：`待完成`
+
+### WP-18 生产交付
+
+对应计划：`plan.md` 第 13.2、19.5 节。
+
+状态：`[ ]`
+
+任务：
+
+- [ ] 完成 staging/production 部署清单和 Secret 管理。
+- [ ] 完成域名、TLS、CORS、网络和最小权限策略。
+- [ ] 完成数据库、对象存储和队列备份恢复策略。
+- [ ] 部署 Dashboard、日志、Trace 和告警规则。
+- [ ] 完成容量规划、费用保护、配额和滥用防护。
+- [ ] 完成灰度、版本兼容、回滚和灾难恢复演练。
+- [ ] 编写部署、值班、排障和应急手册。
+- [ ] 更新面试材料，保证描述与真实实现一致。
+
+出口条件：
+
+- [ ] 可发布、可扩容、可回滚且不丢失 Run/Event/Artifact。
+- [ ] 生产化检查清单、演练记录和最终 release commit 已提交。
+
+完成 commit：`待完成`
+
 ## 4. 提交记录
 
 | 日期 | 工作包 | Commit | 主要变更 | 验证结果 |
 | --- | --- | --- | --- | --- |
 | 2026-10-14 | WP-00 | `b338d72` | 创建并提交项目基线、最终计划、执行同步和智能体交接文档 | `git diff --check` 通过；GitHub 推送进行中 |
+| 2026-10-14 | REBASELINE | 待提交 | 独立 Agent Film 产品重基线；纠正 WP-02 至 WP-10 完成状态；重排 WP-11 至 WP-18 | `pytest: 331 passed`；`mypy: 187 errors`；ruff 未安装；运行链审计发现 stub/no-op |
 
 ## 5. 验证记录
 
@@ -922,7 +1242,34 @@ Fixture: 17 个 Go Client 可读取的 JSON fixture
 项目 Git: WP-01 commit `e1ed9c3`
 ```
 
-### 5.2 后续验证模板
+### 5.2 正式重基线审计
+
+```text
+日期：2026-10-14
+命令：pytest -q
+结果：退出码 0
+关键输出：331 passed, 1 warning
+
+命令：ruff check .
+结果：命令不可用
+关键输出：ruff is not recognized
+
+命令：mypy app
+结果：非零
+关键输出：Found 187 errors in 35 files (checked 67 source files)
+
+代码审计：
+- Worker 未注入 GraphRunner，默认 handler 为 no-op
+- GraphRunner._execute_graph() 仍为 stub
+- interaction response 未调用 Command(resume=...)
+- LLM Factory 未被业务节点调用
+- Real Provider 均返回 not_implemented
+- 鉴权 helper 未接入 API 路由
+- RabbitMQ 默认 URL 指向管理端口 15675
+关联文档：docs/REBASELINE_2026-10-14.md
+```
+
+### 5.3 后续验证模板
 
 ```text
 工作包：WP-XX
@@ -944,7 +1291,7 @@ Fixture: 17 个 Go Client 可读取的 JSON fixture
 | 2026-10-14 | 引入 Outbox 模式：API 写 outbox_event，Publisher 异步发布到 RabbitMQ | 解耦 API 事务和消息投递 | OutboxPublisher、消息投递 |
 | 2026-10-14 | Worker 使用 pika BlockingConnection 在专用线程运行 | pika 是同步库，需避免与 FastAPI async 混用 | Worker 架构、线程安全 |
 | 2026-10-14 | Conversation 锁基于 Redis SET NX EX + heartbeat | 防止同一 Conversation 并发执行 | Worker 并发控制 |
-| 2026-10-14 | LangGraph StateGraph 节点通过 async 函数注册，interrupt 节点标记为 END | 与 LangGraph interrupt/resume 语义对齐 | Graph 架构、HITL |
+| 2026-10-14 | 历史实现把交互节点直接连到 END | 重基线审计确认这不等价于 LangGraph interrupt/resume，WP-11 必须修复 | Graph 架构、HITL |
 | 2026-10-14 | Prompt 通过 PromptProfile dataclass 版本化管理 | 确保结果可复现和可审计 | LLM 配置、Prompt 管理 |
 | 2026-10-14 | 前端无独立 Tool/Provider 接口，工具以字符串标识 | 工具名称对齐前端 `ToolStartedPayload.tool_name` union | Tool Registry、Event payload |
 | 2026-10-14 | 前端无 Provider 选择界面，Provider 是 wisecut-agent 内部抽象 | 按领域分类（research/materials/digital_human/video）提供 Demo/Real 切换 | Provider 平台 |
@@ -957,7 +1304,11 @@ Fixture: 17 个 Go Client 可读取的 JSON fixture
 | 2026-10-14 | SSRF 防护使用 socket.getaddrinfo 解析 DNS | 同步 DNS 解析在生产环境应改用异步解析器 | 安全/性能 |
 | 2026-10-14 | RateLimiter 基于 Redis sorted set 滑动窗口 | 比固定计数器更精确，但需要 Redis 可用 | 限流 |
 | 2026-10-14 | MetricsCollector 为全局单例线程安全实现 | 低开销，支持 Prometheus 文本格式导出 | 可观测性 |
-| 2026-10-14 | 空 MAA Header 时跳过权限检查（fallback 行为） | 兼容本地开发和测试，生产环境应强制 Header 校验 | 安全 |
+| 2026-10-14 | 历史实现允许空 MAA Header 和固定身份 fallback | 仅可存在于显式测试 fixture；公开/生产路由必须移除 | 安全、Product API、MAA API |
+| 2026-10-14 | 项目升级为“独立 Agent Film 产品 + MAA 兼容适配器” | 当前后端模块可复用，但产品外壳仍依赖 WiseCut | plan 全局、WP-11 至 WP-18 |
+| 2026-10-14 | 独立 Web 采用 Vue 3 + TypeScript + Vite，放在同仓库 `web/` | 与 WiseCut 现有 Agent Film 前端技术一致，同时保持独立构建和 API | Product API、Web、Docker |
+| 2026-10-14 | 视频生成使用远程 API Provider，不要求本地 FFmpeg | 最终目标部署服务器，降低镜像和计算运维复杂度 | WP-09、WP-14、Provider、Artifact |
+| 2026-10-14 | 历史 commit 保留，但不满足最终出口的 WP 重新标记 `[~]` | 模块存在不等于运行链完成，避免后续智能体基于虚假完成度推进 | WP-02、03、05-10 |
 
 ## 7. 阻塞项和风险
 
@@ -965,23 +1316,19 @@ Fixture: 17 个 Go Client 可读取的 JSON fixture
 | --- | --- | --- | --- |
 | 开放 | 原版 MAA 的私有 Prompt、工具源码和真实 Provider 配置不可见 | 不能逐行复原原实现 | 按可观察协议做行为兼容重建 |
 | 开放 | 真实视频、数字人和素材服务凭证未知 | 本地无法保证调用线上 Provider | 先使用显式 Demo Provider，再提供真实 Provider 接口 |
-| 开放 | 当前 GitHub 第四个仓库尚未创建 | 暂时只能本地提交 | 代码基线稳定后再绑定远端 |
+| 已解决 | GitHub 仓库已创建并绑定 `origin` | 无 | 远端为 `git@github.com:tangfire/wisecut-agent.git` |
 | 已记录 | Go Client 中 `buildAgentFilmHeaders` 使用 `X-Session-ID` 存 project_id，`setAgentFilmHeaders` 使用 `X-Project-ID` | MAA API 统一使用 `X-Project-ID`，需确认 WiseCut 后端是否接受两种 Header | 以 `setAgentFilmHeaders` 为准（MAA API 相关方法均使用此函数），记录差异 |
+| 开放 | 本地分支比 `origin/main` 超前 10 个 commit | 其他环境从 GitHub 获取不到 WP-05 至 WP-10 | 重基线 commit 完成后由用户决定并执行 push |
+| 开放 | 尚未确定真实视频生成 API 供应商和测试凭证 | WP-14 无法完成真实视频验收 | 先完成供应商无关 contract，再由用户提供沙箱/测试配置 |
+| 开放 | 现有 331 测试未覆盖真实 Worker/Graph/Provider 链 | 绿色测试可能掩盖运行时不可用 | WP-11 新增真实依赖和闭环测试 |
 
 ## 8. 下一步
 
-WP-10 已完成：
-
-- [x] SSRF 防护：validate_external_url 覆盖 IPv4/IPv6/危险端口/DNS 解析
-- [x] 权限边界：verify_conversation_access/run_access/artifact_access
-- [x] 文件上传校验：大小/数量/扩展名/MIME 检查
-- [x] 请求脱敏：SENSITIVE_FIELDS + RedactingFormatter
-- [x] AuditLog Repository：create + get_by_resource
-- [x] Metrics：HTTP/LLM/Tool/Run/SSE/Outbox + Prometheus 导出
-- [x] OpenTelemetry：TracerProvider + FastAPI/SQLAlchemy 插桩
-- [x] Rate Limiter：Redis 滑动窗口
-- [x] 41 个 WP-10 测试通过，331 总测试无回归
-- [ ] 进入 WP-11：Docker 和环境（Dockerfile、Compose、local-demo/local-llm/staging/production 配置）
+- [ ] 从 WP-11 开始，先修复 Worker/Graph/HITL/LLM 运行闭环和工程质量债。
+- [ ] WP-11 未完成前，不开始独立 Vue 前端，避免前端建立在不可执行的后端上。
+- [ ] WP-12 建立独立 Product API 后，再执行 WP-13 Web。
+- [ ] WP-14 接入真实 LLM 和真实远程视频生成 API；Demo URL 不作为完成证据。
+- [ ] 重基线文档提交后，将 `docs/DELEGATION_PROMPT.md` 交给下一位智能体。
 - [ ] 每个工作包完成后立即更新本文件、记录验证输出并提交。
 
 下一次继续任务时，优先处理当前工作包，不跳过出口条件，不把未验证的 `[~]` 改成 `[x]`。
