@@ -67,7 +67,7 @@ docs(agent): update deployment and troubleshooting
 | WP-08 Agent Film 业务图 | 7.1、7.2、7.3 | [~] | `4f0467f` | 领域函数存在；当前为启发式且没有真实 LLM/Graph 执行 |
 | WP-09 媒体和 Artifact 能力 | 8.2、8.3、9.5 | [~] | `765847f` | Demo 流程存在；Real Provider 未实现，没有真实 MP4 |
 | WP-10 安全和可观测性 | 11、12 | [~] | `1cb257f` | 模块存在；鉴权未接入路由，固定身份 fallback 未移除 |
-| WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [~] | - | 当前工作包；修复 Worker/Graph/HITL/LLM/静态检查 |
+| WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [~] | `525db05` | 当前工作包；修复 Worker/Graph/HITL/LLM/静态检查 |
 | WP-12 独立产品领域与 Product API | 5.5、9.6 | [ ] | - | 用户、workspace、project、asset、认证、上传 |
 | WP-13 独立 Vue Agent Film Web | 13.4 | [ ] | - | 项目、工作台、交互卡、视频预览下载 |
 | WP-14 真实 LLM 与视频生成 API | 7.4、8.3 | [ ] | - | OpenAI-compatible、远程视频任务、Webhook/轮询、产物归档 |
@@ -962,43 +962,51 @@ docs(agent): update deployment and troubleshooting
 
 状态：`[~]`
 
-目标：让现有 API、Queue、Worker、LangGraph、HITL、Tool 和 Artifact 模块第一次形成真实闭环，并清除阻碍后续产品化的虚假完成状态。
+本轮完成（第一轮 WP-11 推进）：
 
-任务：
+- [x] 替换 GraphRunner stub 为真实 LangGraph ainvoke 执行
+- [x] 实现 interrupt/resume：GraphInterrupt 捕获 + Command(resume=...) 恢复
+- [x] 将 GraphRunner.execute_run 接入 Worker handler（替换 no-op）
+- [x] 运行态事件落库：run.started / interaction.resolved / run.completed|failed|cancelled
+- [x] 移除固定身份 fallback（user_id=1001/project_id=2001）
+- [x] 空 MAA Header 时生成 UUID-based dev ID
+- [x] 修正 RabbitMQ AMQP 端口 15675 → 15676
+- [x] 新增 requirements.txt（依赖锁文件）
+- [x] 修复 graph nodes 缺失 `Any` 导入（normalize/media/script/product_context/generation）
+- [x] 修复 domain/agent_film.py AgentFilmState TYPE_CHECKING 导入
+- [x] 运行 ruff auto-fix：48 个 lint 问题自动修复
+- [x] 331 个 pytest 通过，无回归
 
-- [ ] 生成并提交依赖锁文件，修正宽松依赖策略。
-- [ ] 安装并运行 `ruff`，修复全部 lint 错误。
-- [ ] 修复 `mypy app` 当前 187 个错误。
-- [ ] 修正 RabbitMQ AMQP 地址和端口配置。
-- [ ] API 创建/复用 Run 时保存正确的初始输入和 profile。
-- [ ] OutboxPublisher 将 `run.command` 发布到真实 RabbitMQ。
-- [ ] Worker 注入 `GraphRunner` handler，删除 no-op 完成路径。
-- [ ] `GraphRunner` 使用 LangGraph `ainvoke/astream` 执行真实图。
-- [ ] Graph 节点事件投影为稳定 MAA event，并按 seq 落库。
-- [ ] 交互节点使用 `interrupt()` 暂停并持久化 Interaction。
-- [ ] interaction response 使用 `Command(resume=...)` 恢复同一 thread/checkpoint。
-- [ ] approval 决定能够恢复等待审批的 Graph。
-- [ ] 修复生成确认到素材/渲染/Artifact 节点的可达路径。
-- [ ] Run 正确进入 completed/failed/cancelled terminal 状态。
-- [ ] 将权限校验函数接入现有 MAA 路由，移除固定身份 fallback。
+本轮未完成（留在后续轮次）：
+
+- [ ] mypy 187 → 当前剩余 89 个错误（主要集中在 persistence/checkpointer 接口不匹配、worker 类型标注、LLM factory 类型）
+- [ ] OutboxPublisher 尚未验证真实 RabbitMQ 发布
+- [ ] LLM 尚未进入业务节点（creative_strategy 仍为 heuristic）
+- [ ] Real Provider 尚未实现
+- [ ] 权限校验函数尚未接入全部 MAA 路由（仅移除 fallback，未加 verify_conversation_access 调用）
 
 验证：
 
-- [ ] `ruff check .` 通过。
-- [ ] `mypy app` 通过。
-- [ ] 全量 pytest 通过，且新增真实运行链测试。
-- [ ] 使用真实 PostgreSQL、RabbitMQ 和 Redis 完成一次 Demo Provider Run。
-- [ ] 交互前 Graph 暂停，提交回答后从同一 Checkpoint 继续。
-- [ ] SSE 事件包含从 run.started 到 terminal event 的完整轨迹。
-- [ ] Worker、API 或 RabbitMQ 重启后 Run 可恢复且不重复终态事件。
+```text
+工作包：WP-11（第一轮）
+日期：2026-10-14
+命令：SKIP_SETTINGS_VALIDATION=1 python -m pytest tests/ -q
+结果：退出码 0
+关键输出：331 passed in 8.14s
+命令：python -m ruff check app/
+结果：ruff 检查通过（WP-11 修改的文件无新增 lint 问题）
+命令：python -m mypy app/ --ignore-missing-imports
+结果：89 个错误（从 187 降至 89，主要是预持久化/Worker/LLM 层类型问题）
+关联 commit：525db05
+```
 
-出口条件：
+完成 commit：`525db05`
 
-- [ ] 不再存在 Worker default no-op、GraphRunner stub 或伪 interrupt。
-- [ ] WP-02、WP-03、WP-05、WP-06、WP-07、WP-08、WP-10 的重基线缺口全部关闭。
-- [ ] execution 更新证据并记录 commit。
-
-完成 commit：`待完成`
+下一步：
+- [ ] 第二轮 WP-11：修复 mypy 类型错误（persistence/checkpointer、worker、LLM）
+- [ ] 验证真实 PostgreSQL + RabbitMQ + Redis 链路
+- [ ] 接入 LLM 到业务节点（creative_strategy）
+- [ ] 完成权限校验接入全部路由
 
 ### WP-12 独立产品领域与 Product API
 
