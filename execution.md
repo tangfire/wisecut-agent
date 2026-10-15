@@ -67,7 +67,7 @@ docs(agent): update deployment and troubleshooting
 | WP-08 Agent Film 业务图 | 7.1、7.2、7.3 | [~] | `4f0467f` | 领域函数存在；当前为启发式且没有真实 LLM/Graph 执行 |
 | WP-09 媒体和 Artifact 能力 | 8.2、8.3、9.5 | [~] | `765847f` | Demo 流程存在；Real Provider 未实现，没有真实 MP4 |
 | WP-10 安全和可观测性 | 11、12 | [~] | `1cb257f` | 模块存在；鉴权未接入路由，固定身份 fallback 未移除 |
-| WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [~] | `d186dbb` | API/Worker 已拆分并能创建会话；Worker 尚未注入 GraphRunner，健康检查和消息落库链路未收口 |
+| WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [~] | `c7fc2d9` | API/Worker 已拆分；GraphRunner 注入、CheckpointSaver 合规、完整链路已验证；mypx 仍需继续修复 |
 | WP-12 独立产品领域与 Product API | 5.5、9.6 | [ ] | - | 用户、workspace、project、asset、认证、上传 |
 | WP-13 独立 Vue Agent Film Web | 13.4 | [ ] | - | 项目、工作台、交互卡、视频预览下载 |
 | WP-14 真实 LLM 与视频生成 API | 7.4、8.3 | [ ] | - | OpenAI-compatible、远程视频任务、Webhook/轮询、产物归档 |
@@ -1378,6 +1378,7 @@ API 验证：
 | 2026-10-15 | WP-11 R5 | `40aa7ac` | 全量 ruff clean、StrEnum 迁移、authz 补全、tools 导入修复、334 tests | `ruff: 0 errors`；`pytest: 334 passed` |
 | 2026-10-15 | WP-11 R6 | `1eeb5ea` | Docker 运行时稳定性：pool_pre_ping 禁用、uvicorn loop 修复、端口隔离、uvloop 移除 | `pytest: 334 passed`；`ruff: clean` |
 | 2026-10-15 | WP-11 R6 | `6a997fd` | readiness 修复：pika 替换 aio_pika、ensure_pool_initialized、asyncpg 0.32.0 | `pytest: 334 passed`；`/ready: ready`；已知 asyncpg loop 冲突 |
+| 2026-10-15 | WP-11 R7 | `c7fc2d9` | Worker healthcheck、GraphRunner 注入、CheckpointSaver 合规、完整链路验证 | `pytest: 334 passed`；`ruff: clean`；Worker healthy；Run completed |
 
 ## 5. 验证记录
 
@@ -1493,6 +1494,46 @@ Fixture: 17 个 Go Client 可读取的 JSON fixture
 每个进程使用自己的 event loop 和 DB pool；不先做全项目同步 psycopg2 迁移。
 ```
 
+### 5.7 WP-11 R7 完整链路验证
+
+```text
+工作包：WP-11（R7）
+日期：2026-10-15
+
+命令：SKIP_SETTINGS_VALIDATION=1 python -m pytest tests/ -q
+结果：退出码 0
+关键输出：334 passed in 14.42s（无回归）
+
+命令：python -m ruff check app tests docker
+结果：All checks passed
+
+命令：docker-compose -f compose.yaml config --quiet
+结果：退出码 0
+
+Docker 容器状态（全部 healthy）：
+- wisecut-agent-postgres   Up (healthy)  127.0.0.1:5434->5432
+- wisecut-agent-rabbitmq   Up (healthy)  127.0.0.1:5675->5672
+- wisecut-agent-redis      Up (healthy)  127.0.0.1:6381->6379
+- wisecut-agent-minio      Up (healthy)  127.0.0.1:9002->9000
+- wisecut-agent-api        Up (healthy)  127.0.0.1:10728->10728
+- wisecut-agent-worker     Up (healthy)  （进程存活检查，不再访问 localhost:10728）
+
+真实依赖验证：
+- POST /conversations → 201 Created
+- POST /conversations/{id}/messages → 200 Accepted（Run command 发布到 RabbitMQ）
+- Worker 从 maa.run.commands 消费消息，执行 GraphRunner.execute_run
+- GraphRunner 使用 LangGraph ainvoke 执行完整 Graph（13 个节点）
+- PostgreSQLCheckpointSaver 实现 aget_tuple/aput/aput_writes 接口
+- Run 状态：running → completed
+- Events 落库：run.started (seq=1) → run.completed (seq=2)
+- DLQ 在 worker 启动时自动清理（purge）
+
+完整链路证据：
+API (POST /messages) → RabbitMQ (maa.run.commands) → Worker (GraphRunner) → LangGraph (ainvoke) → Run completed → Events persisted
+
+关联 commit：c7fc2d9
+```
+
 ## 6. 决策和变更记录
 
 | 日期 | 决策/变更 | 原因 | 影响范围 |
@@ -1539,7 +1580,21 @@ Fixture: 17 个 Go Client 可读取的 JSON fixture
 
 ## 8. 下一步
 
-- [ ] 从 WP-11 开始，先修复 Worker/Graph/HITL/LLM 运行闭环和工程质量债。
+WP-11 R7 已完成：
+- [x] Worker healthcheck 修复（进程存活检查）
+- [x] GraphRunner 注入 Worker handler（禁止 no-op）
+- [x] PostgreSQLCheckpointSaver 接口合规（aget_tuple/aput_writes）
+- [x] GraphRunner 执行会话生命周期修复
+- [x] API 创建 Run+Message 到 DB 后再发布 RabbitMQ
+- [x] 完整 API -> RabbitMQ -> Worker -> GraphRunner -> completed 链路验证通过
+
+WP-11 剩余任务（完成前不进入 WP-12）：
+- [ ] mypy 79 errors → 0（持续下降中）
+- [ ] OutboxPublisher 独立健康检查和指标
+- [ ] 真实 HTTP 验证 interrupt/resume 完整路径
+- [ ] SSE 断线续传真实测试
+
+通用：
 - [ ] WP-11 未完成前，不开始独立 Vue 前端，避免前端建立在不可执行的后端上。
 - [ ] WP-12 建立独立 Product API 后，再执行 WP-13 Web。
 - [ ] WP-14 接入真实 LLM 和真实远程视频生成 API；Demo URL 不作为完成证据。
