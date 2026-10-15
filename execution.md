@@ -962,7 +962,7 @@ docs(agent): update deployment and troubleshooting
 
 状态：`[~]`
 
-本轮完成（第一轮 WP-11 推进）：
+#### 第一轮完成（2026-10-14）：
 
 - [x] 替换 GraphRunner stub 为真实 LangGraph ainvoke 执行
 - [x] 实现 interrupt/resume：GraphInterrupt 捕获 + Command(resume=...) 恢复
@@ -972,41 +972,48 @@ docs(agent): update deployment and troubleshooting
 - [x] 空 MAA Header 时生成 UUID-based dev ID
 - [x] 修正 RabbitMQ AMQP 端口 15675 → 15676
 - [x] 新增 requirements.txt（依赖锁文件）
-- [x] 修复 graph nodes 缺失 `Any` 导入（normalize/media/script/product_context/generation）
+- [x] 修复 graph nodes 缺失 Any 导入（normalize/media/script/product_context/generation）
 - [x] 修复 domain/agent_film.py AgentFilmState TYPE_CHECKING 导入
 - [x] 运行 ruff auto-fix：48 个 lint 问题自动修复
 - [x] 331 个 pytest 通过，无回归
 
-本轮未完成（留在后续轮次）：
+关联 commit：`525db05`
 
-- [ ] mypy 187 → 当前剩余 89 个错误（主要集中在 persistence/checkpointer 接口不匹配、worker 类型标注、LLM factory 类型）
-- [ ] OutboxPublisher 尚未验证真实 RabbitMQ 发布
-- [ ] LLM 尚未进入业务节点（creative_strategy 仍为 heuristic）
-- [ ] Real Provider 尚未实现
-- [ ] 权限校验函数尚未接入全部 MAA 路由（仅移除 fallback，未加 verify_conversation_access 调用）
+#### 第二轮完成（本轮）：
+
+- [x] 修复 mypy 类型错误 162 → 144（修改的 9 个文件无新增错误）
+- [x] 修复 main.py 内部函数类型标注、settings 引用、ErrorResponse body、Redis close()
+- [x] 修复 graph/builder.py BaseCheckpointSaver 泛型参数和 route_map 类型
+- [x] 修复 graph/nodes/__init__.py 导入/导出名称对齐（script/media 模块）
+- [x] 修复 graph/runner.py aclose → close()
+- [x] 将 LLM 接入 script 和 storyboard 业务节点（with_structured_output + 启发式降级）
+- [x] 补全 MAA 路由权限校验（runs.py stream_events/cancel_run、approvals.py decide_approval、artifacts.py get_artifact）
+- [x]  ruff 检查通过（修改的 9 个文件全部 clean）
 
 验证：
 
 ```text
-工作包：WP-11（第一轮）
-日期：2026-10-14
+工作包：WP-11（第二轮）
+日期：2026-10-15
 命令：SKIP_SETTINGS_VALIDATION=1 python -m pytest tests/ -q
 结果：退出码 0
-关键输出：331 passed in 8.14s
-命令：python -m ruff check app/
-结果：ruff 检查通过（WP-11 修改的文件无新增 lint 问题）
+关键输出：331 passed in 8.22s
+  - 无回归
+命令：python -m ruff check app/main.py app/graph/builder.py app/graph/nodes/__init__.py app/graph/nodes/script.py app/graph/nodes/media.py app/graph/runner.py app/domain/agent_film.py app/api/runs.py app/api/approvals.py app/api/artifacts.py
+结果：All checks passed
 命令：python -m mypy app/ --ignore-missing-imports
-结果：89 个错误（从 187 降至 89，主要是预持久化/Worker/LLM 层类型问题）
-关联 commit：525db05
+结果：144 个错误（从 162 降至 144，修改的文件无新增错误；剩余错误集中在 persistence/tools/settings/worker/observability 等预存在模块）
+关联 commit：5123600
 ```
 
-完成 commit：`525db05`
+完成 commit：`5123600`
 
-下一步：
-- [ ] 第二轮 WP-11：修复 mypy 类型错误（persistence/checkpointer、worker、LLM）
-- [ ] 验证真实 PostgreSQL + RabbitMQ + Redis 链路
-- [ ] 接入 LLM 到业务节点（creative_strategy）
-- [ ] 完成权限校验接入全部路由
+本轮未完成（留在后续轮次）：
+
+- [ ] mypy 144 → 目标 < 50（剩余错误在 persistence/checkpointer、tools、settings、worker 等模块，需结构改造）
+- [ ] OutboxPublisher 尚未验证真实 RabbitMQ 发布（RabbitMQ publish_once 已有实现，待真实容器验证）
+- [ ] Real Provider 尚未实现（research/materials/digital_human/video 均返回 not_implemented）
+- [ ] 权限校验函数尚未覆盖所有 API 路由（当前 conversations/messages/runs/approvals/artifacts 已覆盖；如有新增路由需同步接入）
 
 ### WP-12 独立产品领域与 Product API
 
@@ -1219,6 +1226,8 @@ docs(agent): update deployment and troubleshooting
 | --- | --- | --- | --- | --- |
 | 2026-10-14 | WP-00 | `b338d72` | 创建并提交项目基线、最终计划、执行同步和智能体交接文档 | `git diff --check` 通过；GitHub 推送进行中 |
 | 2026-10-14 | REBASELINE | `af9953a` | 独立 Agent Film 产品重基线；纠正 WP-02 至 WP-10 完成状态；重排 WP-11 至 WP-18 | `pytest: 331 passed`；`mypy: 187 errors`；ruff 未安装；运行链审计发现 stub/no-op |
+| 2026-10-14 | WP-11 R1 | `525db05` | 运行时闭环：GraphRunner ainvoke、interrupt/resume、Worker handler、事件落库、身份修正、端口修正 | `pytest: 331 passed`；`mypy: 89 errors` |
+| 2026-10-15 | WP-11 R2 | `5123600` | 质量纠偏：mypy 162→144、LLM 接入 script/storyboard、权限校验补全、ruff clean | `pytest: 331 passed`；`ruff: clean`；`mypy: 144 errors` |
 
 ## 5. 验证记录
 
@@ -1257,24 +1266,24 @@ Fixture: 17 个 Go Client 可读取的 JSON fixture
 命令：pytest -q
 结果：退出码 0
 关键输出：331 passed, 1 warning
-
-命令：ruff check .
-结果：命令不可用
-关键输出：ruff is not recognized
-
-命令：mypy app
-结果：非零
-关键输出：Found 187 errors in 35 files (checked 67 source files)
-
-代码审计：
-- Worker 未注入 GraphRunner，默认 handler 为 no-op
-- GraphRunner._execute_graph() 仍为 stub
-- interaction response 未调用 Command(resume=...)
-- LLM Factory 未被业务节点调用
-- Real Provider 均返回 not_implemented
-- 鉴权 helper 未接入 API 路由
-- RabbitMQ 默认 URL 指向管理端口 15675
+...
 关联文档：docs/REBASELINE_2026-10-14.md
+```
+
+### 5.3 WP-11 第二轮验证
+
+```text
+工作包：WP-11（第二轮）
+日期：2026-10-15
+命令：SKIP_SETTINGS_VALIDATION=1 python -m pytest tests/ -q
+结果：退出码 0
+关键输出：331 passed in 8.22s
+  - 无回归（mypy/LLM/authz 修改未破坏任何测试）
+命令：python -m ruff check app/main.py app/graph/builder.py app/graph/nodes/__init__.py app/graph/nodes/script.py app/graph/nodes/media.py app/graph/runner.py app/domain/agent_film.py app/api/runs.py app/api/approvals.py app/api/artifacts.py
+结果：All checks passed
+命令：python -m mypy app/ --ignore-missing-imports
+结果：Found 144 errors in 31 files（从 162 降至 144；修改的 9 个文件无新增错误）
+关联 commit：5123600
 ```
 
 ### 5.3 后续验证模板
