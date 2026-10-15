@@ -1006,14 +1006,36 @@ docs(agent): update deployment and troubleshooting
 关联 commit：5123600
 ```
 
-完成 commit：`5123600`
+#### 第三轮完成（2026-10-15）：
+
+- [x] mypy 144 → 117（减少 27 个错误，涉及 7 个文件）
+- [x] 修复 worker/run_worker.py 类型标注（loop 变量、Future 泛型、Redis close()、connection assert）
+- [x] 修复 worker/cancel.py Redis 泛型参数
+- [x] 修复 worker/lock_manager.py Redis 泛型参数和 Task 泛型
+- [x] 修复 persistence/repositories.py 状态赋值 type: ignore（5 处）
+- [x] 移除 graph/builder.py 和 graph/runner.py 未使用 type: ignore
+- [x] 修复 main.py 未使用 type: ignore 和 GraphRunner 类型不匹配
+
+验证：
+
+```text
+工作包：WP-11（第三轮）
+日期：2026-10-15
+命令：SKIP_SETTINGS_VALIDATION=1 python -m pytest tests/ -q
+结果：退出码 0
+关键输出：331 passed in 7.64s（无回归）
+命令：python -m mypy app/ --ignore-missing-imports
+结果：Found 117 errors in 27 files（从 144 降至 117；修改的 7 个文件无新增错误）
+关联 commit：e35f8af
+```
+
+完成 commit：`e35f8af`
 
 本轮未完成（留在后续轮次）：
 
-- [ ] mypy 144 → 目标 < 50（剩余错误在 persistence/checkpointer、tools、settings、worker 等模块，需结构改造）
-- [ ] OutboxPublisher 尚未验证真实 RabbitMQ 发布（RabbitMQ publish_once 已有实现，待真实容器验证）
-- [ ] Real Provider 尚未实现（research/materials/digital_human/video 均返回 not_implemented）
-- [ ] 权限校验函数尚未覆盖所有 API 路由（当前 conversations/messages/runs/approvals/artifacts 已覆盖；如有新增路由需同步接入）
+- [ ] mypy 117 → 目标 < 50（剩余错误在 checkpointer、tools/executor、tools/policy、tracing、engine、registry、nodes/__init__.py、domain/agent_film 等，需进一步结构改造）
+- [ ] OutboxPublisher 尚未验证真实 RabbitMQ 发布
+- [ ] Real Provider 尚未实现
 
 ### WP-12 独立产品领域与 Product API
 
@@ -1228,6 +1250,7 @@ docs(agent): update deployment and troubleshooting
 | 2026-10-14 | REBASELINE | `af9953a` | 独立 Agent Film 产品重基线；纠正 WP-02 至 WP-10 完成状态；重排 WP-11 至 WP-18 | `pytest: 331 passed`；`mypy: 187 errors`；ruff 未安装；运行链审计发现 stub/no-op |
 | 2026-10-14 | WP-11 R1 | `525db05` | 运行时闭环：GraphRunner ainvoke、interrupt/resume、Worker handler、事件落库、身份修正、端口修正 | `pytest: 331 passed`；`mypy: 89 errors` |
 | 2026-10-15 | WP-11 R2 | `5123600` | 质量纠偏：mypy 162→144、LLM 接入 script/storyboard、权限校验补全、ruff clean | `pytest: 331 passed`；`ruff: clean`；`mypy: 144 errors` |
+| 2026-10-15 | WP-11 R3 | `e35f8af` | 类型纠偏：mypy 144→117、worker/Redis/ repositories 类型修复、无类型注解清理 | `pytest: 331 passed`；`mypy: 117 errors` |
 
 ## 5. 验证记录
 
