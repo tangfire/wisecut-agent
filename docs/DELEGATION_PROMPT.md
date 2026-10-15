@@ -37,6 +37,7 @@
 - 严禁 reset、checkout、clean 或覆盖这些未提交改动。先逐个审阅 diff，再决定拆分提交。
 - 当前验证基线：`pytest tests -q` 为 334 passed，`python -m ruff check app tests` 通过，`python -m mypy app --ignore-missing-imports` 为 79 errors，`docker-compose -f compose.yaml config --quiet` 通过。
 - 下一步是启动隔离 PostgreSQL、RabbitMQ、Redis、MinIO，验证 OutboxPublisher、Worker、GraphRunner、SSE 和恢复链路；Real Provider 留到 WP-14。
+- R6 最新诊断：不要直接把 async SQLAlchemy 全量迁移到同步 psycopg2。当前 Compose 把 `ENABLE_WORKER=true` 放在 Uvicorn API 容器中，API 主事件循环和 Worker 线程事件循环共享全局 AsyncEngine/asyncpg pool，这是 `POST /conversations` 返回 500 的首要嫌疑。优先把 API、Worker、OutboxPublisher 拆成独立进程/Compose 服务，各自拥有自己的事件循环和 DB pool，然后重新验证真实 POST。
 ```
 
 ## 智能体每轮结束时必须返回

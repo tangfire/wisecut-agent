@@ -849,6 +849,8 @@ API 进程不执行长任务，只负责：
 3. 写入消息和 Outbox。
 4. 返回当前状态。
 
+API、Worker 和 Outbox Publisher 必须是可独立启动的进程/服务。禁止在同一个 Uvicorn API 进程内启动 Worker 线程并共享全局 AsyncEngine/asyncpg pool；每个进程必须拥有自己的事件循环、数据库连接池和生命周期。
+
 Worker 负责：
 
 1. 从 RabbitMQ durable queue 读取 Run command。
@@ -857,6 +859,8 @@ Worker 负责：
 4. 执行图节点和工具。
 5. 持久化事件和状态。
 6. 处理重试、取消、超时和最终收尾。
+
+Outbox Publisher 负责从 PostgreSQL 读取未发布事件并投递 RabbitMQ，必须作为独立可保活服务或明确的独立进程运行。API 写入 Outbox 后不能假设 API 内部后台线程一定会完成投递。
 
 Redis 只承担锁、通知和短期协调，不承担不可丢失的 Run command source of truth。
 

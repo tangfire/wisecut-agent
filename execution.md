@@ -67,7 +67,7 @@ docs(agent): update deployment and troubleshooting
 | WP-08 Agent Film 业务图 | 7.1、7.2、7.3 | [~] | `4f0467f` | 领域函数存在；当前为启发式且没有真实 LLM/Graph 执行 |
 | WP-09 媒体和 Artifact 能力 | 8.2、8.3、9.5 | [~] | `765847f` | Demo 流程存在；Real Provider 未实现，没有真实 MP4 |
 | WP-10 安全和可观测性 | 11、12 | [~] | `1cb257f` | 模块存在；鉴权未接入路由，固定身份 fallback 未移除 |
-| WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [~] | `6a997fd` | R1-R6 已提交；asyncpg event loop 冲突待解决，真实 DB 查询验证未完成 |
+| WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [~] | `d186dbb` | R1-R6 已提交；API/Worker 共享 AsyncEngine 导致真实 POST 仍 500，需先拆分进程 |
 | WP-12 独立产品领域与 Product API | 5.5、9.6 | [ ] | - | 用户、workspace、project、asset、认证、上传 |
 | WP-13 独立 Vue Agent Film Web | 13.4 | [ ] | - | 项目、工作台、交互卡、视频预览下载 |
 | WP-14 真实 LLM 与视频生成 API | 7.4、8.3 | [ ] | - | OpenAI-compatible、远程视频任务、Webhook/轮询、产物归档 |
@@ -1117,11 +1117,12 @@ API 验证：
 
 | 状态 | 问题 | 影响 | 处理方式 |
 | --- | --- | --- | --- |
-| **开放** | **asyncpg + uvicorn/anyio TaskGroup event loop 冲突** | POST /conversations 等所有需要真实 DB 查询的端点返回 500 | 需要切换到 psycopg2（同步驱动）+ 同步 SQLAlchemy，或 pin anyio/uvicorn 版本。评估影响范围：约 15 个 async DB 调用点。 |
+| **开放** | **API 与 Worker 在同一 Uvicorn 进程共享 AsyncEngine/asyncpg pool** | POST /conversations 等真实 DB 查询端点返回 500；Worker 还可能跨 event loop 使用同一 pool | 优先把 API、Worker、OutboxPublisher 拆成独立服务/进程，各自创建事件循环和 DB pool；暂不盲目迁移整个项目到同步 psycopg2。 |
+| **开放** | **OutboxPublisher 尚未明确作为常驻服务启动** | API 写入 outbox 后可能没有可靠投递到 RabbitMQ | 增加独立 publisher 服务或将其纳入 Worker 进程，必须有健康检查、重试和真实发布证据。 |
 
 未完成（留在 WP-11 后续轮次）：
 
-- [ ] 解决 asyncpg event loop 冲突（需要 psycopg2 迁移）
+- [ ] 拆分 API/Worker/OutboxPublisher 进程，避免跨 event loop 共享 AsyncEngine
 - [ ] mypy 79 → 0
 - [ ] Alembic 迁移在真实 PostgreSQL 上验证
 - [ ] OutboxPublisher 真实 RabbitMQ 发布验证
@@ -1130,7 +1131,7 @@ API 验证：
 崩溃恢复注意事项：
 
 - 当前工作区已提交 2 个 commit（`1eeb5ea`、`6a997fd`），工作区干净。
-- 下一步必须先解决 asyncpg event loop 冲突（psycopg2 迁移），才能继续真实依赖验证。
+- 下一步必须先拆分 API/Worker/OutboxPublisher 的生命周期并复现 POST 500；只有真实 POST 成功后，才继续 Outbox/Worker/Graph/SSE 链路验证。
 
 ### WP-12 独立产品领域与 Product API
 
@@ -1442,6 +1443,26 @@ Fixture: 17 个 Go Client 可读取的 JSON fixture
 
 当前未提交：12 个文件，包含 Compose/Docker、数据库引擎、依赖和测试调整。
 下一步：先审阅并提交这些改动，再启动隔离依赖容器完成 Outbox/Worker/GraphRunner/SSE 真实验证。
+```
+
+### 5.5 WP-11 R6 架构诊断复核
+
+```text
+日期：2026-10-15
+
+容器状态：PostgreSQL、RabbitMQ、Redis、MinIO、agent-api 均 healthy。
+请求：POST http://127.0.0.1:10728/conversations
+结果：HTTP 500 Internal Server Error（已独立复现）。
+
+配置证据：
+- agent-api 设置 ENABLE_WORKER=true。
+- app.main lifespan 在 Uvicorn API 进程内调用 start_worker_thread(GraphRunner.execute_run)。
+- Worker 专用线程创建自己的 asyncio event loop。
+- API 与 Worker 都通过 app.persistence.engine 的全局 AsyncEngine/session factory 访问 asyncpg。
+- Compose 没有独立 agent-worker 和 outbox-publisher 服务。
+
+判断：首要修复方向是按 plan.md §10.1 拆分 API、Worker、OutboxPublisher 进程，
+每个进程使用自己的 event loop 和 DB pool；不先做全项目同步 psycopg2 迁移。
 ```
 
 ## 6. 决策和变更记录
