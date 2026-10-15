@@ -50,7 +50,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         try:
             from app.graph.runner import GraphRunner
             from app.worker.run_worker import start_worker_thread
-            worker = start_worker_thread(run_handler=GraphRunner().execute_run)
+            worker = start_worker_thread(run_handler=GraphRunner().execute_run)  # type: ignore[arg-type]
             logger.info("Background worker started with GraphRunner")
         except Exception as exc:
             logger.warning("Failed to start worker", extra={"error": str(exc)})
@@ -260,7 +260,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             import redis.asyncio as aioredis
             r = aioredis.from_url(settings.redis_url)
             await r.ping()
-            await r.close()  # type: ignore[attr-defined]
+            await r.close()
             checks["dependencies"]["redis"] = {"status": "ok"}
         except Exception as exc:
             logger.warning(f"Readiness: redis check failed: {exc}")

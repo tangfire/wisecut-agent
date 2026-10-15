@@ -23,7 +23,7 @@ _CANCEL_PREFIX = "maa:cancel:"
 class CancelController:
     """Controls cancel flag via Redis."""
 
-    def __init__(self, redis_client: aioredis.Redis) -> None:
+    def __init__(self, redis_client: aioredis.Redis[Any]) -> None:
         self._redis = redis_client
 
     async def request_cancel(self, run_id: str) -> None:

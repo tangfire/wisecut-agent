@@ -129,6 +129,7 @@ class RunWorker:
 
             while not self._stop_event.is_set():
                 try:
+                    assert self._connection is not None, "connection not established"
                     self._connection.process_data_events(time_limit=1.0)
                 except pika.exceptions.ConnectionClosed:
                     logger.error("RabbitMQ connection lost, reconnecting...")
@@ -177,7 +178,9 @@ class RunWorker:
             return
 
         # Schedule async processing and block until done
-        result_future: asyncio.Future = self._loop.create_future()
+        loop = self._loop
+        assert loop is not None, "event loop not set"
+        result_future: asyncio.Future[None] = loop.create_future()
 
         async def _process() -> None:
             try:
@@ -194,13 +197,13 @@ class RunWorker:
                 if not result_future.done():
                     result_future.set_exception(exc)
 
-        self._loop.call_soon_threadsafe(
-            lambda: self._loop.create_task(_process())
+        loop.call_soon_threadsafe(
+            lambda: loop.create_task(_process())
         )
 
         # Block the pika I/O thread until the handler completes
         try:
-            self._loop.run_until_complete(result_future)
+            loop.run_until_complete(result_future)
             ch.basic_ack(delivery_tag=delivery_tag)
         except _RetryMessage:
             # Publish to retry queue and ack the original
@@ -221,7 +224,7 @@ class RunWorker:
             ch.basic_ack(delivery_tag=delivery_tag)
         except _DeadLetterMessage:
             ch.basic_nack(delivery_tag=delivery_tag, requeue=False)
-            self._loop.run_until_complete(
+            loop.run_until_complete(
                 _update_run_status(run_id, "failed", "max_retries_exceeded")
             )
         except Exception as exc:
@@ -230,7 +233,7 @@ class RunWorker:
                 extra={"run_id": run_id, "error": str(exc)},
             )
             ch.basic_nack(delivery_tag=delivery_tag, requeue=False)
-            self._loop.run_until_complete(
+            loop.run_until_complete(
                 _update_run_status(run_id, "failed", str(exc))
             )
 
@@ -242,7 +245,7 @@ class RunWorker:
         payload: dict[str, Any],
         max_retries: int,
         attempt: int,
-        result_future: asyncio.Future,
+        result_future: asyncio.Future[None],
     ) -> None:
         """Async processing: cancel check, lock, handler."""
         import redis.asyncio as aioredis
@@ -272,7 +275,7 @@ class RunWorker:
 
             try:
                 # 3. Delegate to handler
-                await self._handler(run_id, conversation_id, command_type, payload, self._loop)
+                await self._handler(run_id, conversation_id, command_type, payload, loop)
                 result_future.set_result(None)
             finally:
                 await lock.release()
@@ -285,7 +288,7 @@ class RunWorker:
             if not result_future.done():
                 result_future.set_exception(exc)
         finally:
-            await redis_client.aclose()
+            await redis_client.close()  # type: ignore[attr-defined]
 
     async def _default_handler(
         self,

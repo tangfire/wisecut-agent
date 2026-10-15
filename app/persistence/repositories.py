@@ -77,7 +77,7 @@ class ConversationRepository(BaseRepository):
         )
         return result.scalar_one_or_none()
 
-    async def get_detail(self, conversation_id: str) -> dict | None:
+    async def get_detail(self, conversation_id: str) -> dict[str, Any] | None:
         """Return conversation detail with active_run, messages, interactions, events."""
         conv = await self.get_by_id(conversation_id)
         if not conv:
@@ -131,7 +131,7 @@ class ConversationRepository(BaseRepository):
     async def update_status(self, conversation_id: str, status: str) -> Conversation | None:
         conv = await self.get_by_id(conversation_id)
         if conv:
-            conv.status = status
+            conv.status = status  # type: ignore[assignment]
             conv.updated_at = self._now()
             await self._session.flush()
         return conv
@@ -178,14 +178,14 @@ class RunRepository(BaseRepository):
     async def update_status(self, run_id: str, status: str) -> Run | None:
         run = await self.get_by_id(run_id)
         if run:
-            run.status = status
+            run.status = status  # type: ignore[assignment]
             await self._session.flush()
         return run
 
     async def mark_started(self, run_id: str) -> Run | None:
         run = await self.get_by_id(run_id)
         if run:
-            run.status = "running"
+            run.status = "running"  # type: ignore[assignment]
             run.started_at = self._now()
             await self._session.flush()
         return run
@@ -193,7 +193,7 @@ class RunRepository(BaseRepository):
     async def mark_finished(self, run_id: str, status: str, error: str | None = None) -> Run | None:
         run = await self.get_by_id(run_id)
         if run:
-            run.status = status
+            run.status = status  # type: ignore[assignment]
             run.finished_at = self._now()
             if error:
                 run.error_message = error
@@ -210,7 +210,7 @@ class RunRepository(BaseRepository):
     async def mark_waiting_interaction(self, run_id: str) -> Run | None:
         run = await self.get_by_id(run_id)
         if run:
-            run.status = "waiting_interaction"
+            run.status = "waiting_interaction"  # type: ignore[assignment]
             run.phase = "awaiting_user_input"
             await self._session.flush()
         return run
@@ -218,7 +218,7 @@ class RunRepository(BaseRepository):
     async def mark_waiting_approval(self, run_id: str) -> Run | None:
         run = await self.get_by_id(run_id)
         if run:
-            run.status = "waiting_approval"
+            run.status = "waiting_approval"  # type: ignore[assignment]
             run.phase = "awaiting_approval"
             await self._session.flush()
         return run
@@ -226,7 +226,7 @@ class RunRepository(BaseRepository):
     async def mark_rendering(self, run_id: str) -> Run | None:
         run = await self.get_by_id(run_id)
         if run:
-            run.status = "rendering"
+            run.status = "rendering"  # type: ignore[assignment]
             run.phase = "rendering"
             await self._session.flush()
         return run
@@ -426,7 +426,7 @@ class ApprovalRepository(BaseRepository):
     ) -> Approval | None:
         approval = await self.get_by_id(approval_id)
         if approval:
-            approval.status = decision
+            approval.status = decision  # type: ignore[assignment]
             approval.decision_json = decision_data or {}
             approval.resolved_at = self._now()
             await self._session.flush()
@@ -471,7 +471,7 @@ class ArtifactRepository(BaseRepository):
     async def mark_ready(self, artifact_id: str, uri: str) -> Artifact | None:
         artifact = await self.get_by_id(artifact_id)
         if artifact:
-            artifact.status = "ready"
+            artifact.status = "ready"  # type: ignore[assignment]
             artifact.uri = uri
             await self._session.flush()
         return artifact

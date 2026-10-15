@@ -21,6 +21,7 @@ import asyncio
 import json
 import logging
 import time
+from typing import Any
 
 import redis.asyncio as aioredis
 
@@ -38,7 +39,7 @@ class ConversationLock:
 
     def __init__(
         self,
-        redis_client: aioredis.Redis,
+        redis_client: aioredis.Redis[Any],
         conversation_id: str,
         run_id: str,
         ttl: int = _LOCK_TTL,
@@ -48,7 +49,7 @@ class ConversationLock:
         self._run_id = run_id
         self._ttl = ttl
         self._key = f"{_LOCK_PREFIX}{conversation_id}"
-        self._heartbeat_task: asyncio.Task | None = None
+        self._heartbeat_task: asyncio.Task[None] | None = None
         self._released = False
 
     @property
@@ -104,7 +105,7 @@ class ConversationLock:
 
     @staticmethod
     async def acquire(
-        redis_client: aioredis.Redis,
+        redis_client: aioredis.Redis[Any],
         conversation_id: str,
         run_id: str,
         ttl: int = _LOCK_TTL,

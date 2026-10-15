@@ -231,7 +231,7 @@ class GraphRunner:
             return {"status": "waiting_interaction"}
         finally:
             try:
-                await redis_client.close()  # type: ignore[attr-defined]
+                await redis_client.close()
             except Exception:
                 pass
 
@@ -268,7 +268,7 @@ class GraphRunner:
             return {"status": "waiting_interaction"}
         finally:
             try:
-                await redis_client.close()  # type: ignore[attr-defined]
+                await redis_client.close()
             except Exception:
                 pass
 

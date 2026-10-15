@@ -158,7 +158,7 @@ class AgentFilmGraphBuilder:
         route_map: dict[str, str],
     ) -> AgentFilmGraphBuilder:
         """Add conditional edges from source based on router function."""
-        self._graph.add_conditional_edges(  # type: ignore[arg-type]
+        self._graph.add_conditional_edges(
             source, router, cast("dict[Any, str]", route_map)
         )
         return self
