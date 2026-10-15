@@ -67,7 +67,7 @@ docs(agent): update deployment and troubleshooting
 | WP-08 Agent Film 业务图 | 7.1、7.2、7.3 | [~] | `4f0467f` | 领域函数存在；当前为启发式且没有真实 LLM/Graph 执行 |
 | WP-09 媒体和 Artifact 能力 | 8.2、8.3、9.5 | [~] | `765847f` | Demo 流程存在；Real Provider 未实现，没有真实 MP4 |
 | WP-10 安全和可观测性 | 11、12 | [~] | `1cb257f` | 模块存在；鉴权未接入路由，固定身份 fallback 未移除 |
-| WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [~] | `d186dbb` | R1-R6 已提交；API/Worker 共享 AsyncEngine 导致真实 POST 仍 500，需先拆分进程 |
+| WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [~] | `d186dbb` | API/Worker 已拆分并能创建会话；Worker 尚未注入 GraphRunner，健康检查和消息落库链路未收口 |
 | WP-12 独立产品领域与 Product API | 5.5、9.6 | [ ] | - | 用户、workspace、project、asset、认证、上传 |
 | WP-13 独立 Vue Agent Film Web | 13.4 | [ ] | - | 项目、工作台、交互卡、视频预览下载 |
 | WP-14 真实 LLM 与视频生成 API | 7.4、8.3 | [ ] | - | OpenAI-compatible、远程视频任务、Webhook/轮询、产物归档 |
@@ -1131,7 +1131,35 @@ API 验证：
 崩溃恢复注意事项：
 
 - 当前工作区已提交 2 个 commit（`1eeb5ea`、`6a997fd`），工作区干净。
-- 下一步必须先拆分 API/Worker/OutboxPublisher 的生命周期并复现 POST 500；只有真实 POST 成功后，才继续 Outbox/Worker/Graph/SSE 链路验证。
+- 下一步必须修正 Worker healthcheck、注入 GraphRunner、明确 OutboxPublisher 生命周期并清理 DLQ；POST 已能成功创建会话，但完整消息执行链仍未验证。
+
+### 5.6 WP-11 拆进程后崩溃恢复复核
+
+```text
+日期：2026-10-15
+
+已确认：
+- agent-api 独立运行，ENABLE_WORKER=false。
+- agent-worker 独立运行，容器进程 status=running。
+- PostgreSQL/RabbitMQ/Redis/MinIO 均 healthy。
+- POST /conversations 返回 HTTP 201。
+- POST /conversations/{id}/messages 返回 HTTP 200，API 日志显示 Run command 已发布。
+- maa.run.commands 存在 consumer，但消息进入 DLQ，完整执行链尚未成功。
+
+未完成/新发现：
+- agent-worker 继承 API Dockerfile 的 HTTP healthcheck，检查 localhost:10728/health；Worker 没有 HTTP server，因此容器被标记 unhealthy。
+- docker/worker_entrypoint.py 创建 `RunWorker()`，没有注入 `GraphRunner().execute_run`，因此仍会使用 `_default_handler`，不能完成真实 Graph 执行。
+- 独立 Compose 当前没有明确的 outbox-publisher 服务；Outbox 生命周期仍需明确。
+- RabbitMQ 当前 `maa.run.commands` 有 consumer，但 DLQ 已有 5 条消息，失败原因和重试路径还需收集。
+- API 创建消息后，Conversation detail 未看到对应消息/active_run，需继续核对同步 API 数据写入和 Worker 读取的数据库一致性。
+
+下一步：
+1. 给 agent-worker 改为进程存活/Worker 心跳 healthcheck，不访问 HTTP 端口。
+2. worker_entrypoint 注入真实 GraphRunner handler。
+3. 明确 outbox-publisher 独立服务或合并到 Worker，并增加启动/健康检查。
+4. 清理或隔离 DLQ 后重新发送单条测试消息，收集 Worker 异常和 Run 状态。
+5. 只有消息能从 API 经 Outbox/RabbitMQ/Worker 执行到 Graph/SSE，WP-11 才能继续收口。
+```
 
 ### WP-12 独立产品领域与 Product API
 
