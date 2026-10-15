@@ -1,15 +1,15 @@
-"""Approval endpoints.
-
-POST /approvals/{approval_id}/decide  — approve or deny a tool approval
-"""
+"""Approval endpoints (sync DB access)."""
 
 from __future__ import annotations
+
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Request, status
 from pydantic import BaseModel
 
+from app.application.sync_services import APIEventService
 from app.core.exceptions import ApprovalNotFound
-from app.persistence.unit_of_work import unit_of_work
+from app.persistence.sync_engine import get_sync_session_factory
 from app.security.authz import verify_conversation_access
 
 router = APIRouter()
@@ -33,26 +33,19 @@ class ApprovalDecisionResponse(BaseModel):
     tags=["Approval"],
 )
 async def decide_approval(request: Request, approval_id: str, body: ApprovalDecisionRequest):
-    """Approve or deny a pending tool approval.
-
-    Matches the Go Client's DecideApproval wire format:
-      POST /approvals/{approval_id}/decide
-      Body: {"decision": {"action": "approve"|"deny", ...}}
-      Response: {"approval": {...}, "event": {...}, "should_resume_runner": true}
-    """
-    # Extract auth context (WP-10 security)
+    """Approve or deny a pending tool approval."""
     _ = request.state.maa_user_id or ""
     _ = request.state.maa_project_id or ""
 
-    async with unit_of_work() as uow:
-        approval_repo = uow.approvals
-        approval = await approval_repo.get_by_id(approval_id)
+    session = get_sync_session_factory()()
+    try:
+        from app.persistence.models import Approval, Conversation
+
+        approval = session.get(Approval, approval_id)
         if approval is None:
             raise ApprovalNotFound(approval_id)
 
-        # Permission check: verify requester can access the approval's conversation
-        conv_repo = uow.conversations
-        conv = await conv_repo.get_by_id(approval.conversation_id)
+        conv = session.get(Conversation, approval.conversation_id)
         if conv:
             verify_conversation_access(
                 conversation_user_id=conv.user_id,
@@ -61,20 +54,15 @@ async def decide_approval(request: Request, approval_id: str, body: ApprovalDeci
             )
 
         decision_action = body.decision.get("action", "approve")
-        decided = await approval_repo.decide(
-            approval_id=approval_id,
-            decision=decision_action,
-            decision_data=body.decision,
-        )
+        approval.status = "approved" if decision_action == "approve" else "denied"
+        approval.decision_json = body.decision
+        approval.resolved_at = datetime.now(UTC)
 
         # Emit approval.resolved event
-        event_repo = uow.events
-        seq = await event_repo.get_next_seq(approval.conversation_id, approval.run_id)
-        await event_repo.create(
-            event_id=f"evt-{__import__('uuid').uuid4().hex[:12]}",
+        event_service = APIEventService()
+        seq = event_service.emit_event(
             conversation_id=approval.conversation_id,
             run_id=approval.run_id,
-            seq=seq,
             event_type="approval.resolved",
             payload={
                 "approval_id": approval_id,
@@ -82,16 +70,17 @@ async def decide_approval(request: Request, approval_id: str, body: ApprovalDeci
                 "tool_name": approval.tool_name,
                 "status": decision_action,
                 "decision": body.decision,
-                "resolved_at": approval.resolved_at.isoformat() if approval.resolved_at else None,
+                "resolved_at": approval.resolved_at.isoformat(),
             },
         )
+        session.commit()
 
         return ApprovalDecisionResponse(
             approval={
                 "approval_id": approval.id,
-                "status": decided.status,
-                "decision": decided.decision_json or {},
-                "resolved_at": decided.resolved_at.isoformat() if decided.resolved_at else None,
+                "status": approval.status,
+                "decision": approval.decision_json or {},
+                "resolved_at": approval.resolved_at.isoformat() if approval.resolved_at else None,
             },
             event={
                 "id": f"evt-{seq}",
@@ -100,3 +89,5 @@ async def decide_approval(request: Request, approval_id: str, body: ApprovalDeci
             },
             should_resume_runner=True,
         )
+    finally:
+        session.close()

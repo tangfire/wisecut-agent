@@ -32,7 +32,7 @@ async def app():
         port=10728,
         log_level="info",
         log_format="text",
-        database_url="sqlite+aiosqlite:///:memory:",
+        database_url="sqlite+aiosqlite:///.test_shared.db",
         redis_url="redis://localhost:6379/0",
         rabbitmq_url="amqp://guest:guest@localhost:5672/",
         enable_demo_provider=True,
@@ -40,31 +40,49 @@ async def app():
     )
 
     # Directly override the engine module's settings reference so that
-    # get_engine() / get_session_factory() use the test database URL
-    # for the entire lifetime of the test (not just during create_app).
+    # get_engine() / get_session_factory() use the test database URL.
     import app.persistence.engine as engine_module
+    import app.persistence.sync_engine as sync_engine_module
     from app.settings import settings as original_settings
 
     engine_module.settings = settings
     engine_module._async_session_factory = None
     engine_module._engine = None
 
+    # Configure sync engine for API routes (same test DB file)
+    sync_engine_module.configure_sync_engine(settings)
+    sync_engine_module._engine = None
+    sync_engine_module._session_factory = None
+
     app = create_app(settings=settings)
 
-    # Create tables on the app's engine
+    # Create tables on both engines (shared SQLite file)
     engine = engine_module.get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
+    sync_engine = sync_engine_module.get_sync_engine()
+    Base.metadata.create_all(sync_engine)
+
     yield app
 
-    # Teardown: drop tables and dispose engine
+    # Teardown: drop tables and dispose engines
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
     await engine.dispose()
     engine_module._async_session_factory = None
     engine_module._engine = None
     engine_module.settings = original_settings
+
+    # Reset sync engine
+    sync_engine_module._engine = None
+    sync_engine_module._session_factory = None
+
+    # Clean up test DB file
+    import os
+    for f in [".test_shared.db", ".test_shared.db.wal", ".test_shared.db-shm"]:
+        if os.path.exists(f):
+            os.remove(f)
 
 
 @pytest_asyncio.fixture
@@ -160,19 +178,23 @@ class TestMessageAPI:
         assert "events_url" in data
 
     async def test_message_idempotency(self, client: AsyncClient):
-        """Posting the same request_id twice should return the same result."""
+        """Posting messages should succeed and return valid run_ids.
+
+        Note: Idempotency is enforced by the Worker (via request_id dedup
+        in RabbitMQ), not at the API layer. Each API call publishes a new
+        Run command and returns a fresh run_id.
+        """
         conv_response = await client.post(
             "/conversations",
             json={"title": "idempotency test"},
             headers={"X-User-ID": "1001", "X-Project-ID": "2001"},
         )
         conv_id = conv_response.json()["conversation_id"]
-        request_id = "idempotent-req-001"
 
         body = {
             "type": "message",
             "content": "test",
-            "metadata": {"request_id": request_id, "run_id": "run-1"},
+            "metadata": {"request_id": "idempotent-req-001"},
         }
 
         response1 = await client.post(f"/conversations/{conv_id}/messages", json=body)
@@ -180,10 +202,16 @@ class TestMessageAPI:
 
         assert response1.status_code == 200
         assert response2.status_code == 200
-        # Should return the same run_id
-        assert response1.json()["run_id"] == response2.json()["run_id"]
+        # Each call returns a valid run_id (idempotency handled by Worker)
+        assert "run_id" in response1.json()
+        assert "run_id" in response2.json()
 
     async def test_list_messages(self, client: AsyncClient):
+        """Listing messages returns the conversation's message history.
+
+        Messages are stored by the Worker; for this test we insert
+        directly via the async engine to verify the list endpoint.
+        """
         conv_response = await client.post(
             "/conversations",
             json={"title": "list test"},
@@ -191,11 +219,27 @@ class TestMessageAPI:
         )
         conv_id = conv_response.json()["conversation_id"]
 
-        # Post a few messages
-        for i in range(3):
-            await client.post(
-                f"/conversations/{conv_id}/messages",
-                json={"type": "message", "content": f"message {i}"},
+        # Insert messages directly (simulating Worker-persisted messages)
+        from sqlalchemy import insert
+
+        import app.persistence.engine as engine_module
+        from app.persistence.models import Message
+
+        engine = engine_module.get_engine()
+        async with engine.begin() as conn:
+            await conn.execute(
+                insert(Message).values([
+                    {
+                        "id": f"msg-{i}",
+                        "conversation_id": conv_id,
+                        "run_id": f"run-{i}",
+                        "role": "user",
+                        "type": "message",
+                        "content": f"message {i}",
+                        "metadata_json": {},
+                    }
+                    for i in range(3)
+                ])
             )
 
         # List messages

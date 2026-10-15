@@ -56,9 +56,11 @@ class RunWorker:
         self,
         run_handler: RunHandler | None = None,
         prefetch_count: int = 1,
+        enable_outbox: bool = False,
     ) -> None:
         self._handler = run_handler or self._default_handler
         self._prefetch = prefetch_count
+        self._enable_outbox = enable_outbox
         self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
         self._loop: asyncio.AbstractEventLoop | None = None
@@ -95,11 +97,40 @@ class RunWorker:
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
 
+        # Initialize asyncpg pool in THIS thread's event loop (WP-11 R6 fix)
+        try:
+            from app.persistence.engine import ensure_pool_initialized
+            self._loop.run_until_complete(ensure_pool_initialized())
+            logger.info("Database pool initialized in worker thread")
+        except Exception as exc:
+            logger.error("Failed to initialize database pool", extra={"error": str(exc)})
+
+        # Start OutboxPublisher as a background task in this loop
+        _outbox_task_ref = None
+        try:
+            from app.infra.outbox_publisher import OutboxPublisher
+            outbox = OutboxPublisher(interval_seconds=5.0, batch_size=100)
+
+            async def _outbox_loop() -> None:
+                try:
+                    await outbox.start()
+                    while outbox._running:
+                        await asyncio.sleep(1)
+                except asyncio.CancelledError:
+                    pass
+                finally:
+                    await outbox.stop()
+
+            _outbox_task_ref = self._loop.create_task(_outbox_loop())
+            logger.info("Outbox publisher started in worker thread")
+        except Exception as exc:
+            logger.error("Failed to start outbox publisher", extra={"error": str(exc)})
+
         # Run startup recovery
         try:
             self._loop.run_until_complete(scan_and_recover())
         except Exception as exc:
-            logger.error("Recovery scan failed", extra={"error": str(exc)})
+            logger.exception("Recovery scan failed", extra={"error": str(exc)})
 
         # Main consume loop
         while not self._stop_event.is_set():
@@ -229,7 +260,7 @@ class RunWorker:
                 _update_run_status(run_id, "failed", "max_retries_exceeded")
             )
         except Exception as exc:
-            logger.error(
+            logger.exception(
                 "RunCommand processing failed",
                 extra={"run_id": run_id, "error": str(exc)},
             )

@@ -34,10 +34,16 @@ logger = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-    """Application lifespan: startup and shutdown hooks."""
+    """Application lifespan: startup and shutdown hooks.
+
+    The API process uses synchronous SQLAlchemy with psycopg2 for database
+    access, avoiding the asyncpg event loop conflict under uvicorn/anyio.
+    The Worker process owns the async engine and asyncpg pool in its own
+    dedicated event loop (plan.md section 10.1).
+    """
     settings = app.state.settings
     logger.info(
-        "Starting WiseCut MAA Agent",
+        "Starting WiseCut MAA Agent (API only, sync DB)",
         extra={
             "env": settings.app_env.value,
             "version": settings.version,
@@ -45,31 +51,25 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         },
     )
 
-    # Start background worker (WP-05/WP-11)
-    worker: Any = None
-    if settings.enable_worker:
+    # Initialize synchronous database engine for API process
+    if not settings.database_url.startswith("sqlite"):
         try:
-            from app.graph.runner import GraphRunner
-            from app.worker.run_worker import start_worker_thread
-            worker = start_worker_thread(run_handler=GraphRunner().execute_run)  # type: ignore[arg-type]
-            logger.info("Background worker started with GraphRunner")
+            from app.persistence.sync_engine import get_sync_engine
+            _ = get_sync_engine()
+            logger.info("Sync database engine initialized")
         except Exception as exc:
-            logger.warning("Failed to start worker", extra={"error": str(exc)})
-
-    # Eagerly initialize asyncpg pool in the main event loop (WP-11 R6 fix)
-    try:
-        from app.persistence.engine import ensure_pool_initialized
-        await ensure_pool_initialized()
-        logger.info("Database pool initialized")
-    except Exception as exc:
-        logger.warning("Database pool initialization deferred", extra={"error": str(exc)})
+            logger.warning("Sync database engine init deferred", extra={"error": str(exc)})
 
     try:
         yield
     finally:
-        if worker:
-            worker.stop()
-        logger.info("Shutting down WiseCut MAA Agent")
+        # Dispose sync engine on shutdown
+        try:
+            from app.persistence.sync_engine import close_sync_db
+            close_sync_db()
+        except Exception:
+            pass
+        logger.info("Shutting down WiseCut MAA Agent (API)")
 
 
 # ---------------------------------------------------------------------------
@@ -253,28 +253,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         checks: dict[str, Any] = {"status": "ready", "dependencies": {}}
         all_ready = True
 
-        # Database check
-        # NOTE: asyncpg + uvicorn/anyio event loop conflict in Docker causes
-        # "Future attached to a different loop" on pool initialization from the
-        # readiness endpoint context. The Worker initializes the engine in the
-        # correct loop context during startup. Skipping readiness DB check here;
-        # actual DB connectivity is verified by the Worker startup and migration
-        # execution. Tracked in execution.md risk register.
+        # Database check (sync engine for API process)
         try:
-            from app.persistence.engine import get_engine
+            from sqlalchemy import text
 
-            engine = get_engine()
-            # Lightweight: verify engine is configured without triggering pool init
-            if engine is not None:
-                checks["dependencies"]["database"] = {
-                    "status": "configured",
-                    "detail": "engine configured; pool init deferred to worker loop",
-                }
-            else:
-                checks["dependencies"]["database"] = {"status": "error", "detail": "engine not configured"}
-                all_ready = False
+            from app.persistence.sync_engine import get_sync_engine
+
+            engine = get_sync_engine()
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            checks["dependencies"]["database"] = {"status": "ok"}
         except Exception as exc:
-            logger.warning(f"Readiness: database engine check failed: {exc}")
+            logger.warning(f"Readiness: database check failed: {exc}")
             checks["dependencies"]["database"] = {"status": "error", "detail": str(exc)}
             all_ready = False
 

@@ -52,8 +52,13 @@ class GraphRunner:
     proper interrupt/resume handling, and event emission.
     """
 
-    def __init__(self, checkpointer: Any = None) -> None:
+    def __init__(
+        self,
+        checkpointer: Any = None,
+        session_factory: Any = None,
+    ) -> None:
         self._checkpointer = checkpointer
+        self._session_factory = session_factory
 
     async def execute_run(
         self,
@@ -76,12 +81,15 @@ class GraphRunner:
         Returns:
             Dict with execution result including status and any interaction.
         """
-        factory = get_session_factory()
+        factory = self._session_factory or get_session_factory()
 
-        # Load run and conversation
+        # Keep the session open for the entire graph execution so the
+        # checkpointer can write checkpoints during ainvoke.
         async with factory() as session:
             checkpointer = PostgreSQLCheckpointSaver(session)
             run_repo = RunRepository(session)
+
+            # Load run and conversation
             run = await run_repo.get_by_id(run_id)
             if run is None:
                 logger.error("Run not found", extra={"run_id": run_id})
@@ -109,14 +117,12 @@ class GraphRunner:
 
             # Check if this is a fresh run or a resume
             if interaction_response:
-                # Resume path: graph state is already in checkpoint
                 initial_state = None
                 config = {"configurable": {"thread_id": graph_thread_id}}
                 await self._emit_interaction_resolved(
                     session, conversation_id, run_id, interaction_response
                 )
             else:
-                # Fresh run: create initial state
                 initial_state = create_initial_state(
                     conversation_id=conversation_id,
                     run_id=run_id,
@@ -125,10 +131,8 @@ class GraphRunner:
                 )
                 config = {"configurable": {"thread_id": graph_thread_id}}
 
-                # Mark run as running
                 await run_repo.mark_started(run_id)
 
-                # Emit run.started event
                 event_repo = EventRepository(session)
                 seq = await event_repo.get_next_seq(conversation_id, run_id)
                 await event_repo.create(
@@ -145,59 +149,45 @@ class GraphRunner:
                         "started_at": datetime.now(UTC).isoformat(),
                     },
                 )
-                await session.commit()
+            await session.commit()
 
-        # Build graph with checkpointer
-        graph = build_default_graph(checkpointer=self._checkpointer or checkpointer)
-        compiled = graph.compile(checkpointer=self._checkpointer or checkpointer)
+            # Build graph with checkpointer
+            compiled = build_default_graph(checkpointer=self._checkpointer or checkpointer)
 
-        # Execute graph
-        try:
-            if interaction_response:
-                result = await self._resume_graph(
-                    compiled=compiled,
-                    config=config,
-                    interaction_response=interaction_response,
-                    run_id=run_id,
-                    conversation_id=conversation_id,
+            # Execute graph
+            try:
+                if interaction_response:
+                    result = await self._resume_graph(
+                        compiled=compiled,
+                        config=config,
+                        interaction_response=interaction_response,
+                        run_id=run_id,
+                        conversation_id=conversation_id,
+                    )
+                else:
+                    assert initial_state is not None
+                    result = await self._run_graph(
+                        compiled=compiled,
+                        config=config,
+                        initial_state=initial_state,
+                        run_id=run_id,
+                        conversation_id=conversation_id,
+                        lock=lock,
+                    )
+                return result
+
+            except GraphInterrupt as exc:
+                await self._handle_interrupt(exc, run_id, conversation_id, graph_thread_id)
+                return {"status": "waiting_interaction"}
+
+            except Exception as exc:
+                logger.error(
+                    "Graph execution failed",
+                    extra={"run_id": run_id, "error": str(exc)},
                 )
-            else:
-                # initial_state is guaranteed non-None here
-                assert initial_state is not None
-                result = await self._run_graph(
-                    compiled=compiled,
-                    config=config,
-                    initial_state=initial_state,
-                    run_id=run_id,
-                    conversation_id=conversation_id,
-                    lock=lock,
-                )
-            return result
-
-        except GraphInterrupt as exc:
-            # Graph paused for interaction/approval
-            logger.info(
-                "Graph interrupted",
-                extra={"run_id": run_id, "interrupt": str(exc)},
-            )
-            await self._handle_interrupt(
-                exc, run_id, conversation_id, graph_thread_id
-            )
-            return {
-                "status": "waiting_interaction",
-                "interrupt": str(exc),
-            }
-
-        except Exception as exc:
-            logger.error(
-                "Graph execution failed",
-                extra={"run_id": run_id, "error": str(exc)},
-            )
-            async with factory() as session:
-                run_repo = RunRepository(session)
                 await run_repo.mark_finished(run_id, "failed", str(exc))
                 await session.commit()
-            return {"status": "failed", "error": str(exc)}
+                return {"status": "failed", "error": str(exc)}
 
     async def _run_graph(
         self,

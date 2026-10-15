@@ -93,7 +93,7 @@ services:
       OBJECT_STORAGE_ACCESS_KEY: wisecut_agent
       OBJECT_STORAGE_SECRET_KEY: wisecut_agent_password
       OBJECT_STORAGE_BUCKET: wisecut-agent
-      ENABLE_WORKER: "true"
+      ENABLE_WORKER: "false"
       ENABLE_DEMO_PROVIDER: "true"
       UVICORN_LOOP: asyncio
     depends_on:
@@ -107,6 +107,44 @@ services:
         condition: service_healthy
     volumes:
       - ./app:/app/app
+    restart: unless-stopped
+    networks:
+      - agent-net
+
+  agent-worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: wisecut-agent-worker
+    command: python docker/worker_entrypoint.py
+    environment:
+      APP_ENV: local-demo
+      DATABASE_URL: postgresql+asyncpg://wisecut_agent:wisecut_agent_password@postgres-agent:5432/wisecut_agent
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://wisecut_agent:wisecut_agent_password@rabbitmq:5672/
+      OBJECT_STORAGE_ENDPOINT: http://minio:9000
+      OBJECT_STORAGE_ACCESS_KEY: wisecut_agent
+      OBJECT_STORAGE_SECRET_KEY: wisecut_agent_password
+      OBJECT_STORAGE_BUCKET: wisecut-agent
+      ENABLE_WORKER: "true"
+      ENABLE_DEMO_PROVIDER: "true"
+    depends_on:
+      postgres-agent:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app
+      - ./docker:/app/docker
+    healthcheck:
+      test: ["CMD-SHELL", "python docker/worker_healthcheck.py"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
     restart: unless-stopped
     networks:
       - agent-net

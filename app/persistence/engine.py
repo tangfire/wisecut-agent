@@ -75,6 +75,26 @@ def get_session_factory() -> sessionmaker[AsyncSession]:
     return _async_session_factory
 
 
+def create_local_session_factory(
+    database_url: str | None = None,
+) -> sessionmaker[AsyncSession]:
+    """Create an independent session factory for a dedicated event loop.
+
+    Use this from Worker threads or other contexts that have their own event
+    loop and must not share the global ``_async_session_factory`` (which binds
+    to the loop that first called ``engine.connect()``).
+    """
+    url = database_url or settings.database_url
+    local_engine = create_async_engine(
+        url,
+        pool_size=settings.db_pool_size,
+        max_overflow=settings.db_max_overflow,
+        pool_recycle=3600,
+        echo=settings.debug,
+    )
+    return sessionmaker(local_engine, class_=AsyncSession, expire_on_commit=False)
+
+
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency: yields an async DB session."""
     factory = get_session_factory()
