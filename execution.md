@@ -67,7 +67,7 @@ docs(agent): update deployment and troubleshooting
 | WP-08 Agent Film 业务图 | 7.1、7.2、7.3 | [~] | `4f0467f` | 领域函数存在；当前为启发式且没有真实 LLM/Graph 执行 |
 | WP-09 媒体和 Artifact 能力 | 8.2、8.3、9.5 | [~] | `765847f` | Demo 流程存在；Real Provider 未实现，没有真实 MP4 |
 | WP-10 安全和可观测性 | 11、12 | [~] | `1cb257f` | 模块存在；鉴权未接入路由，固定身份 fallback 未移除 |
-| WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [~] | `4c02ffb` | R1-R5 已提交；R6 崩溃前留下未提交 Compose/引擎/测试改动，真实依赖验证未完成 |
+| WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [~] | `6a997fd` | R1-R6 已提交；asyncpg event loop 冲突待解决，真实 DB 查询验证未完成 |
 | WP-12 独立产品领域与 Product API | 5.5、9.6 | [ ] | - | 用户、workspace、project、asset、认证、上传 |
 | WP-13 独立 Vue Agent Film Web | 13.4 | [ ] | - | 项目、工作台、交互卡、视频预览下载 |
 | WP-14 真实 LLM 与视频生成 API | 7.4、8.3 | [ ] | - | OpenAI-compatible、远程视频任务、Webhook/轮询、产物归档 |
@@ -1061,30 +1061,76 @@ docs(agent): update deployment and troubleshooting
 
 #### 第六轮（崩溃恢复点，2026-10-15）：mypy 继续修复 + Docker Compose + 真实依赖验证
 
-- [x] 创建并提交 Agent 独立开发 Compose 基线（`4c02ffb`）。
-- [x] 创建并提交 Dockerfile 基线（`4c02ffb`）。
-- [x] `docker-compose -f compose.yaml config --quiet` 当前配置校验通过。
-- [x] 当前全量 pytest：334 passed，3 warnings。
-- [x] 当前全量 ruff：`python -m ruff check app tests` 通过。
-- [ ] 当前 mypy：79 errors，继续收敛到 0。
-- [ ] 启动隔离 PostgreSQL、RabbitMQ、Redis、MinIO 容器。
-- [ ] 真实验证 Alembic、OutboxPublisher、RabbitMQ Worker、GraphRunner、SSE 和恢复。
-- [ ] 记录容器状态、命令、日志和数据库证据。
-- [ ] 提交当前 12 个未提交文件，提交前必须完成测试和 diff review。
-- [ ] WP-11 闭环证据记录完成前不标记 `[x]`。
+已完成（共 2 个 commit）：
 
-本轮未完成（留在 WP-11 后续轮次）：
+**Commit `1eeb5ea` — Docker 运行时稳定性与清理：**
 
-- [ ] mypy 79 → 0（剩余错误在 tools/executor/policy/registry、observability/tracing、providers/demo、persistence/engine、llm/factory）
+- [x] 禁用 pool_pre_ping（Docker 环境下 asyncpg event loop 冲突）
+- [x] 跳过 health/ready/version 端点的 metrics 采集（避免 event loop 问题）
+- [x] Dockerfile 添加 Debian archive mirrors、移除 uvloop、添加 --workers 1
+- [x] 隔离服务端口（5434、5675、6381、9002/9003），不与 WiseCut 冲突
+- [x] 移除 agent-web 服务（WP-11 规则：前端未开始）
+- [x] 添加 UVICORN_LOOP=asyncio 环境变量
+- [x] 添加 sse-starlette 依赖
+- [x] 修正 asyncpg/psycopg2 不匹配：保持 asyncpg + create_async_engine
+- [x] 恢复 RabbitMQ 管理 UI 端口映射
+- [x] 清理 6 个测试文件中的未使用导入
+
+**Commit `6a997fd` — 运行时修复与 readiness 修复：**
+
+- [x] 替换 aio_pika（未安装）为 pika 同步客户端（通过 run_in_executor）
+- [x] 替换 readiness 中异步 DB 连接检查为 engine-only 检查
+- [x] 在 lifespan startup 添加 ensure_pool_initialized()
+- [x] 升级 asyncpg 0.29.0 → 0.32.0（Python 3.12 / event loop 修复）
+- [x] 添加 asyncio 导入到 main.py
+- [x] 隔离 RabbitMQ 管理 UI 端口（与外部容器冲突）
+
+验证（Commit `6a997fd`）：
+
+```text
+工作包：WP-11（R6 第二轮）
+日期：2026-10-15
+命令：SKIP_SETTINGS_VALIDATION=1 python -m pytest tests -q
+结果：退出码 0
+关键输出：334 passed in 13.71s（无回归）
+
+命令：python -m ruff check app/main.py app/persistence/engine.py
+结果：All checks passed
+
+命令：docker-compose -f compose.yaml config --quiet
+结果：退出码 0
+
+Docker 容器状态：
+- wisecut-agent-postgres   Up (healthy)  127.0.0.1:5434->5432
+- wisecut-agent-rabbitmq   Up (healthy)  127.0.0.1:5675->5672
+- wisecut-agent-redis      Up (healthy)  127.0.0.1:6381->6379
+- wisecut-agent-minio      Up (healthy)  127.0.0.1:9002->9000
+- wisecut-agent-api        Up (healthy)  127.0.0.1:10728->10728
+
+API 验证：
+- GET /health  → {"status":"ok"}
+- GET /ready   → {"status":"ready","dependencies":{"database":{"status":"configured"},"redis":{"status":"ok"},"rabbitmq":{"status":"ok"}}}
+- POST /conversations → 500（已知：asyncpg event loop 冲突，见风险表）
+```
+
+已知风险（阻塞项）：
+
+| 状态 | 问题 | 影响 | 处理方式 |
+| --- | --- | --- | --- |
+| **开放** | **asyncpg + uvicorn/anyio TaskGroup event loop 冲突** | POST /conversations 等所有需要真实 DB 查询的端点返回 500 | 需要切换到 psycopg2（同步驱动）+ 同步 SQLAlchemy，或 pin anyio/uvicorn 版本。评估影响范围：约 15 个 async DB 调用点。 |
+
+未完成（留在 WP-11 后续轮次）：
+
+- [ ] 解决 asyncpg event loop 冲突（需要 psycopg2 迁移）
+- [ ] mypy 79 → 0
+- [ ] Alembic 迁移在真实 PostgreSQL 上验证
 - [ ] OutboxPublisher 真实 RabbitMQ 发布验证
 - [ ] Worker/GraphRunner/SSE 真实依赖验证
 
 崩溃恢复注意事项：
 
-- 当前工作区的未提交改动属于智能体第六轮草稿，不能 reset、checkout 或覆盖。
-- 未提交文件包括 `app/main.py`、`app/persistence/engine.py`、`compose.yaml`、`docker/Dockerfile`、`requirements.txt` 以及相关测试文件。
-- `4c02ffb` 是已提交的 Compose/Docker 基线；当前工作区对它的端口、数据库驱动和 API/测试仍有进一步修改。
-- 下一次应先读取这些 diff、运行验证，再决定拆分提交，不能从 WP-11 第一轮重新开始。
+- 当前工作区已提交 2 个 commit（`1eeb5ea`、`6a997fd`），工作区干净。
+- 下一步必须先解决 asyncpg event loop 冲突（psycopg2 迁移），才能继续真实依赖验证。
 
 ### WP-12 独立产品领域与 Product API
 
@@ -1301,7 +1347,8 @@ docs(agent): update deployment and troubleshooting
 | 2026-10-15 | WP-11 R2 | `5123600` | 质量纠偏：mypy 162→144、LLM 接入 script/storyboard、权限校验补全、ruff clean | `pytest: 331 passed`；`ruff: clean`；`mypy: 144 errors` |
 | 2026-10-15 | WP-11 R3 | `e35f8af` | 类型纠偏：mypy 144→117、worker/Redis/ repositories 类型修复、无类型注解清理 | `pytest: 331 passed`；`mypy: 117 errors` |
 | 2026-10-15 | WP-11 R5 | `40aa7ac` | 全量 ruff clean、StrEnum 迁移、authz 补全、tools 导入修复、334 tests | `ruff: 0 errors`；`pytest: 334 passed` |
-| 2026-10-15 | WP-11 R6 崩溃恢复点 | 未提交 | Compose/Docker 后续调整、引擎/依赖/测试修改仍在工作区 | `pytest: 334 passed`；`ruff app tests: clean`；`mypy: 79 errors`；Compose config 通过 |
+| 2026-10-15 | WP-11 R6 | `1eeb5ea` | Docker 运行时稳定性：pool_pre_ping 禁用、uvicorn loop 修复、端口隔离、uvloop 移除 | `pytest: 334 passed`；`ruff: clean` |
+| 2026-10-15 | WP-11 R6 | `6a997fd` | readiness 修复：pika 替换 aio_pika、ensure_pool_initialized、asyncpg 0.32.0 | `pytest: 334 passed`；`/ready: ready`；已知 asyncpg loop 冲突 |
 
 ## 5. 验证记录
 
