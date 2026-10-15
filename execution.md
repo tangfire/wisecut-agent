@@ -58,7 +58,7 @@ docs(agent): update deployment and troubleshooting
 | --- | --- | --- | --- | --- |
 | WP-00 仓库和执行基线 | 1、16、17、20 | [x] | `b338d72` | 文档基线已提交 |
 | WP-01 MAA 协议冻结 | 2、2.1、9 | [x] | `e1ed9c3` | OpenAPI、27 Schema、17 Fixture、115 契约测试 |
-| WP-02 基础工程和配置 | 3.2、13 | [~] | `d833500` | 基础已实现；缺锁文件，ruff 未安装，mypy 187 errors |
+| WP-02 基础工程和配置 | 3.2、13 | [~] | `d833500` | `requirements.txt` 已固定；全量 ruff/mypy 仍未通过 |
 | WP-03 持久化和迁移 | 5、5.3、5.4 | [~] | `1fe860c` | Repository/UoW 已实现；缺真实 PostgreSQL/Checkpoint 恢复验收 |
 | WP-04 MAA API 和事件流 | 9、10.1 | [x] | `e745158` | MAA 兼容 API 表面完成；运行闭环归 WP-11 |
 | WP-05 Worker 和恢复机制 | 10、10.3、10.4 | [~] | `5520c2d` | 队列/锁模块存在；Worker 默认 handler 仍为 no-op |
@@ -1055,11 +1055,13 @@ docs(agent): update deployment and troubleshooting
 
 完成 commit：`dce6bc0`
 
-本轮未完成（留在后续轮次）：
+本轮未完成（留在 WP-11 后续轮次）：
 
-- [ ] mypy 81 → 目标 < 50（剩余错误在 tools/executor/policy/registry、observability/tracing、providers/demo、persistence/engine、llm/factory 等预存在模块）
+- [ ] mypy 81 → 0（`<50` 只能作为中间进度，不是最终完成标准；剩余错误在 tools/executor/policy/registry、observability/tracing、providers/demo、persistence/engine、llm/factory 等模块）
 - [ ] OutboxPublisher 尚未验证真实 RabbitMQ 发布
-- [ ] Real Provider 尚未实现
+- [x] Real Provider 不作为 WP-11 阻塞项，已移动到 WP-14
+- [ ] 当前未提交的 `app/api/conversations.py`、`app/api/messages.py`、`app/worker/run_worker.py` 变更先完成测试并提交
+- [ ] 建立隔离的 Agent 依赖 Compose，使用独立 PostgreSQL/RabbitMQ/Redis 端口，完成真实 Outbox/Worker 验证
 
 ### WP-12 独立产品领域与 Product API
 
@@ -1276,6 +1278,7 @@ docs(agent): update deployment and troubleshooting
 | 2026-10-15 | WP-11 R2 | `5123600` | 质量纠偏：mypy 162→144、LLM 接入 script/storyboard、权限校验补全、ruff clean | `pytest: 331 passed`；`ruff: clean`；`mypy: 144 errors` |
 | 2026-10-15 | WP-11 R3 | `e35f8af` | 类型纠偏：mypy 144→117、worker/Redis/ repositories 类型修复、无类型注解清理 | `pytest: 331 passed`；`mypy: 117 errors` |
 | 2026-10-15 | WP-11 R4 | `dce6bc0` | 类型纠偏：mypy 117→81、checkpointer 接口修复、state 泛型、agent_film 类型 | `pytest: 331 passed`；`mypy: 81 errors` |
+| 2026-10-15 | WP-11 R5 待收口 | 未提交 | API 权限接入和 Worker 类型小修仍在工作区；等待测试、提交和真实依赖验证 | 当前全量 `pytest: 331 passed`；全量 `ruff: 81 errors`；mypy 目标继续收敛 |
 
 ## 5. 验证记录
 
@@ -1370,6 +1373,8 @@ Fixture: 17 个 Go Client 可读取的 JSON fixture
 | 2026-10-14 | RateLimiter 基于 Redis sorted set 滑动窗口 | 比固定计数器更精确，但需要 Redis 可用 | 限流 |
 | 2026-10-14 | MetricsCollector 为全局单例线程安全实现 | 低开销，支持 Prometheus 文本格式导出 | 可观测性 |
 | 2026-10-14 | 历史实现允许空 MAA Header 和固定身份 fallback | 仅可存在于显式测试 fixture；公开/生产路由必须移除 | 安全、Product API、MAA API |
+| 2026-10-15 | Real Provider 不属于 WP-11 | WP-11 先证明运行时闭环和基础设施可用，真实视频供应商接入属于 WP-14 | WP-11、WP-14 |
+| 2026-10-15 | 真实依赖验证使用 Agent 独立 Compose，不复用不明归属的 `argus-postgres` | 避免把其他项目数据库当作 MAA Agent 数据库 | WP-03、WP-11、WP-16 |
 | 2026-10-14 | 项目升级为“独立 Agent Film 产品 + MAA 兼容适配器” | 当前后端模块可复用，但产品外壳仍依赖 WiseCut | plan 全局、WP-11 至 WP-18 |
 | 2026-10-14 | 独立 Web 采用 Vue 3 + TypeScript + Vite，放在同仓库 `web/` | 与 WiseCut 现有 Agent Film 前端技术一致，同时保持独立构建和 API | Product API、Web、Docker |
 | 2026-10-14 | 视频生成使用远程 API Provider，不要求本地 FFmpeg | 最终目标部署服务器，降低镜像和计算运维复杂度 | WP-09、WP-14、Provider、Artifact |
