@@ -1029,39 +1029,49 @@ docs(agent): update deployment and troubleshooting
 关联 commit：e35f8af
 ```
 
-#### 第四轮完成（2026-10-15）：
+#### 第五轮完成（2026-10-15）：
 
-- [x] mypy 117 → 81（减少 36 个错误，涉及 5 个文件，错误文件 27 → 24）
-- [x] 修复 graph/state.py AgentFilmState 类型（dict → dict[str, Any]，消除 13 个错误）
-- [x] 修复 domain/agent_film.py 类型（dict 泛型、len() 类型、None-safe 访问，消除 8 个错误）
-- [x] 修复 persistence/checkpointer.py LangGraph 接口不匹配（type: ignore[override]，消除 10 个错误）
-- [x] 修复 worker/cancel.py 缺失 Any 导入
-- [x] 修复 worker/run_worker.py loop 作用域和 type: ignore
-- [x] 修复 security/rate_limit.py Redis 泛型和 close()
-- [x] 修复 application/services.py dict 类型和函数注解
+- [x] 全量 ruff 修复：`app/ tests/` 全部 clean（0 errors）
+- [x] 将 7 个 StrEnum 从 `str, Enum` 迁移到 `StrEnum`（models.py, settings.py, tools/contracts.py）
+- [x] 修复 tools/approval.py 缺失 ToolExecutionRepository 导入
+- [x] 修复 tools/policy.py 缺失 ToolRegistry 导入
+- [x] 修复 tools/executor.py 缺失 ToolRegistry 导入
+- [x] 移除 application/services.py 未使用 msg 变量（2 处）
+- [x] 移除 worker/lock_manager.py 未使用 data 变量
+- [x] 修复 tests 中重定义、未使用变量和导入
+- [x] 334 个 pytest 通过（+3）
+- [x] 提交 3 个未提交文件（conversations.py, messages.py, run_worker.py）
 
 验证：
 
 ```text
-工作包：WP-11（第四轮）
+工作包：WP-11（第五轮）
 日期：2026-10-15
 命令：SKIP_SETTINGS_VALIDATION=1 python -m pytest tests/ -q
 结果：退出码 0
-关键输出：331 passed in 11.45s（无回归）
+关键输出：334 passed in 8.23s（无回归）
+命令：python -m ruff check app tests
+结果：All checks passed（全量 clean）
 命令：python -m mypy app/ --ignore-missing-imports
-结果：Found 81 errors in 24 files（从 117 降至 81）
-关联 commit：dce6bc0
+结果：Found 79 errors in 23 files（从 81 降至 79）
+关联 commit：40aa7ac
 ```
 
-完成 commit：`dce6bc0`
+完成 commit：`40aa7ac`
+
+#### 第六轮（进行中）：mypy 继续修复 + Docker Compose + 真实依赖验证
+
+- [ ] mypy 79 → 0
+- [ ] 新增 Agent 独立开发 Compose（隔离端口）
+- [ ] 真实 PostgreSQL、RabbitMQ、Redis 容器验证 Outbox/Worker/GraphRunner/SSE
+- [ ] 记录容器状态和验证结果到 execution.md
+- [ ] WP-11 闭环证据记录完成前不标记 [x]
 
 本轮未完成（留在 WP-11 后续轮次）：
 
-- [ ] mypy 81 → 0（`<50` 只能作为中间进度，不是最终完成标准；剩余错误在 tools/executor/policy/registry、observability/tracing、providers/demo、persistence/engine、llm/factory 等模块）
-- [ ] OutboxPublisher 尚未验证真实 RabbitMQ 发布
-- [x] Real Provider 不作为 WP-11 阻塞项，已移动到 WP-14
-- [ ] 当前未提交的 `app/api/conversations.py`、`app/api/messages.py`、`app/worker/run_worker.py` 变更先完成测试并提交
-- [ ] 建立隔离的 Agent 依赖 Compose，使用独立 PostgreSQL/RabbitMQ/Redis 端口，完成真实 Outbox/Worker 验证
+- [ ] mypy 79 → 0（剩余错误在 tools/executor/policy/registry、observability/tracing、providers/demo、persistence/engine、llm/factory）
+- [ ] OutboxPublisher 真实 RabbitMQ 发布验证
+- [ ] Worker/GraphRunner/SSE 真实依赖验证
 
 ### WP-12 独立产品领域与 Product API
 
@@ -1277,7 +1287,7 @@ docs(agent): update deployment and troubleshooting
 | 2026-10-14 | WP-11 R1 | `525db05` | 运行时闭环：GraphRunner ainvoke、interrupt/resume、Worker handler、事件落库、身份修正、端口修正 | `pytest: 331 passed`；`mypy: 89 errors` |
 | 2026-10-15 | WP-11 R2 | `5123600` | 质量纠偏：mypy 162→144、LLM 接入 script/storyboard、权限校验补全、ruff clean | `pytest: 331 passed`；`ruff: clean`；`mypy: 144 errors` |
 | 2026-10-15 | WP-11 R3 | `e35f8af` | 类型纠偏：mypy 144→117、worker/Redis/ repositories 类型修复、无类型注解清理 | `pytest: 331 passed`；`mypy: 117 errors` |
-| 2026-10-15 | WP-11 R4 | `dce6bc0` | 类型纠偏：mypy 117→81、checkpointer 接口修复、state 泛型、agent_film 类型 | `pytest: 331 passed`；`mypy: 81 errors` |
+| 2026-10-15 | WP-11 R5 | `40aa7ac` | 全量 ruff clean、StrEnum 迁移、authz 补全、tools 导入修复、334 tests | `ruff: 0 errors`；`pytest: 334 passed` |
 | 2026-10-15 | WP-11 R5 待收口 | 未提交 | API 权限接入和 Worker 类型小修仍在工作区；等待测试、提交和真实依赖验证 | 当前全量 `pytest: 331 passed`；全量 `ruff: 81 errors`；mypy 目标继续收敛 |
 
 ## 5. 验证记录

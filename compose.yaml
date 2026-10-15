@@ -1,0 +1,142 @@
+services:
+  postgres-agent:
+    image: postgres:16-alpine
+    container_name: wisecut-agent-postgres
+    environment:
+      POSTGRES_USER: wisecut_agent
+      POSTGRES_PASSWORD: wisecut_agent_password
+      POSTGRES_DB: wisecut_agent
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres-agent-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wisecut_agent -d wisecut_agent"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - agent-net
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: wisecut-agent-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: wisecut_agent
+      RABBITMQ_DEFAULT_PASS: wisecut_agent_password
+    ports:
+      - "127.0.0.1:5673:5672"   # AMQP
+      - "127.0.0.1:15673:15672"  # Management UI
+    volumes:
+      - rabbitmq-agent-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - agent-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: wisecut-agent-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "127.0.0.1:6380:6379"
+    volumes:
+      - redis-agent-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - agent-net
+
+  minio:
+    image: minio/minio:latest
+    container_name: wisecut-agent-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: wisecut_agent
+      MINIO_ROOT_PASSWORD: wisecut_agent_password
+    ports:
+      - "127.0.0.1:9000:9000"  # API
+      - "127.0.0.1:9001:9001"  # Console
+    volumes:
+      - minio-agent-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - agent-net
+
+  agent-api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: wisecut-agent-api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 10728
+    ports:
+      - "127.0.0.1:10728:10728"
+    environment:
+      APP_ENV: local-demo
+      DATABASE_URL: postgresql+asyncpg://wisecut_agent:wisecut_agent_password@postgres-agent:5432/wisecut_agent
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://wisecut_agent:wisecut_agent_password@rabbitmq:5672/
+      OBJECT_STORAGE_ENDPOINT: http://minio:9000
+      OBJECT_STORAGE_ACCESS_KEY: wisecut_agent
+      OBJECT_STORAGE_SECRET_KEY: wisecut_agent_password
+      OBJECT_STORAGE_BUCKET: wisecut-agent
+      ENABLE_WORKER: "true"
+      ENABLE_DEMO_PROVIDER: "true"
+    depends_on:
+      postgres-agent:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./app:/app/app
+    restart: unless-stopped
+    networks:
+      - agent-net
+
+  agent-web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: wisecut-agent-web
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      VITE_API_URL: http://localhost:10728
+    depends_on:
+      - agent-api
+    restart: unless-stopped
+    networks:
+      - agent-net
+
+volumes:
+  postgres-agent-data:
+    driver: local
+  rabbitmq-agent-data:
+    driver: local
+  redis-agent-data:
+    driver: local
+  minio-agent-data:
+    driver: local
+
+networks:
+  agent-net:
+    driver: bridge
+    name: wisecut-agent-net
