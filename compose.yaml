@@ -27,7 +27,6 @@ services:
       RABBITMQ_DEFAULT_PASS: wisecut_agent_password
     ports:
       - "127.0.0.1:5675:5672"   # AMQP (isolated)
-      - "127.0.0.1:15673:15672"  # Management UI (isolated)
     volumes:
       - rabbitmq-agent-data:/var/lib/rabbitmq
     healthcheck:

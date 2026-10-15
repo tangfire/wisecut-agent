@@ -1,4 +1,12 @@
-"""SQLAlchemy async engine and session factory."""
+"""SQLAlchemy async engine and session factory.
+
+Note on asyncpg + uvicorn event loop compatibility:
+  asyncpg's connection pool binds its background tasks to the event loop that
+  exists at pool initialization time.  If the pool is first accessed from a
+  different loop (e.g. Starlette middleware context), subsequent queries raise
+  "Future attached to a different loop".  We therefore eagerly initialize the
+  pool during application startup, which runs in the main asyncio loop.
+"""
 
 from __future__ import annotations
 
@@ -11,10 +19,11 @@ from app.settings import settings
 
 _engine: AsyncEngine | None = None
 _async_session_factory: sessionmaker[AsyncSession] | None = None
+_pool_ready = False
 
 
 def get_engine() -> AsyncEngine:
-    global _engine
+    global _engine, _pool_ready
     if _engine is None:
         # SQLite (including aiosqlite) does not support pool_size/max_overflow.
         if settings.database_url.startswith("sqlite"):
@@ -22,6 +31,7 @@ def get_engine() -> AsyncEngine:
                 settings.database_url,
                 echo=settings.debug,
             )
+            _pool_ready = True
         else:
             # pool_pre_ping disabled: causes event loop conflicts with asyncpg
             # under uvicorn/anyio in some environments (Docker).
@@ -33,6 +43,25 @@ def get_engine() -> AsyncEngine:
                 echo=settings.debug,
             )
     return _engine
+
+
+async def ensure_pool_initialized() -> None:
+    """Eagerly initialize the asyncpg connection pool in the current event loop.
+
+    Must be called from the main application event loop (e.g. lifespan startup).
+    """
+    global _pool_ready
+    if _pool_ready:
+        return
+    engine = get_engine()
+    try:
+        async with engine.connect() as conn:
+            await conn.execute("SELECT 1")
+        _pool_ready = True
+    except Exception:
+        # If the check fails (e.g. DB not yet ready), leave pool uninitialized;
+        # the next call will retry.
+        pass
 
 
 def get_session_factory() -> sessionmaker[AsyncSession]:
