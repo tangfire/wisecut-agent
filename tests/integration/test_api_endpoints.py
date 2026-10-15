@@ -5,10 +5,8 @@ from __future__ import annotations
 import os
 import sys
 
-import pytest
 import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from httpx import ASGITransport, AsyncClient
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
@@ -17,7 +15,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 # ---------------------------------------------------------------------------
 
 from app.persistence.models import Base  # noqa: E402
-from app.persistence.engine import _engine, _async_session_factory  # noqa: E402
 
 
 @pytest_asyncio.fixture

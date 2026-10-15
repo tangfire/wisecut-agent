@@ -95,27 +95,30 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.middleware("http")
     async def metrics_middleware(request: Request, call_next: Any) -> Any:
-        """Record HTTP request metrics."""
+        """Record HTTP request metrics (skip health probes)."""
         from app.observability.metrics import metrics as collector
         start = time.perf_counter()
         try:
             response = await call_next(request)
             duration_ms = (time.perf_counter() - start) * 1000
-            collector.record_http_request(
-                method=request.method,
-                path=request.url.path,
-                status_code=response.status_code,
-                duration_ms=duration_ms,
-            )
+            # Skip metrics for health/ready endpoints to avoid event loop issues
+            if request.url.path not in ("/health", "/ready", "/version"):
+                collector.record_http_request(
+                    method=request.method,
+                    path=request.url.path,
+                    status_code=response.status_code,
+                    duration_ms=duration_ms,
+                )
             return response
         except Exception:
             duration_ms = (time.perf_counter() - start) * 1000
-            collector.record_http_request(
-                method=request.method,
-                path=request.url.path,
-                status_code=500,
-                duration_ms=duration_ms,
-            )
+            if request.url.path not in ("/health", "/ready", "/version"):
+                collector.record_http_request(
+                    method=request.method,
+                    path=request.url.path,
+                    status_code=500,
+                    duration_ms=duration_ms,
+                )
             raise
 
     if settings.enable_rate_limit:

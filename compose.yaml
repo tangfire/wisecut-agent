@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: wisecut_agent_password
       POSTGRES_DB: wisecut_agent
     ports:
-      - "127.0.0.1:5433:5432"
+      - "127.0.0.1:5434:5432"   # PostgreSQL (isolated from WiseCut)
     volumes:
       - postgres-agent-data:/var/lib/postgresql/data
     healthcheck:
@@ -26,8 +26,8 @@ services:
       RABBITMQ_DEFAULT_USER: wisecut_agent
       RABBITMQ_DEFAULT_PASS: wisecut_agent_password
     ports:
-      - "127.0.0.1:5673:5672"   # AMQP
-      - "127.0.0.1:15673:15672"  # Management UI
+      - "127.0.0.1:5675:5672"   # AMQP (isolated)
+      - "127.0.0.1:15673:15672"  # Management UI (isolated)
     volumes:
       - rabbitmq-agent-data:/var/lib/rabbitmq
     healthcheck:
@@ -44,7 +44,7 @@ services:
     container_name: wisecut-agent-redis
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
-      - "127.0.0.1:6380:6379"
+      - "127.0.0.1:6381:6379"   # Redis (isolated)
     volumes:
       - redis-agent-data:/data
     healthcheck:
@@ -64,8 +64,8 @@ services:
       MINIO_ROOT_USER: wisecut_agent
       MINIO_ROOT_PASSWORD: wisecut_agent_password
     ports:
-      - "127.0.0.1:9000:9000"  # API
-      - "127.0.0.1:9001:9001"  # Console
+      - "127.0.0.1:9002:9000"  # API (isolated)
+      - "127.0.0.1:9003:9001"  # Console (isolated)
     volumes:
       - minio-agent-data:/data
     healthcheck:
@@ -96,6 +96,7 @@ services:
       OBJECT_STORAGE_BUCKET: wisecut-agent
       ENABLE_WORKER: "true"
       ENABLE_DEMO_PROVIDER: "true"
+      UVICORN_LOOP: asyncio
     depends_on:
       postgres-agent:
         condition: service_healthy
@@ -107,21 +108,6 @@ services:
         condition: service_healthy
     volumes:
       - ./app:/app/app
-    restart: unless-stopped
-    networks:
-      - agent-net
-
-  agent-web:
-    build:
-      context: ./web
-      dockerfile: Dockerfile
-    container_name: wisecut-agent-web
-    ports:
-      - "127.0.0.1:3000:3000"
-    environment:
-      VITE_API_URL: http://localhost:10728
-    depends_on:
-      - agent-api
     restart: unless-stopped
     networks:
       - agent-net

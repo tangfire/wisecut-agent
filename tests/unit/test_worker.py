@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-import asyncio
 import os
 import sys
+from datetime import UTC
 from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
-import pytest_asyncio
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
@@ -165,7 +162,7 @@ class TestOutboxPublisher:
 
 class TestRunRecovery:
     async def test_scan_non_terminal_runs(self):
-        from app.worker.run_recovery import _RECOVERABLE_STATUSES, scan_and_recover
+        from app.worker.run_recovery import scan_and_recover
 
         mock_run = MagicMock()
         mock_run.id = "run-queued"
@@ -196,15 +193,16 @@ class TestRunRecovery:
         assert recovered[0]["action"] == "retained"
 
     async def test_scan_resets_stuck_running_runs(self):
+        from datetime import datetime
+
         from app.worker.run_recovery import scan_and_recover
-        from datetime import datetime, timezone
 
         mock_run = MagicMock()
         mock_run.id = "run-stuck"
         mock_run.status = "running"
         # Started 2 hours ago → should be marked as failed
-        two_hours_ago = datetime.now(timezone.utc).timestamp() - 7200
-        mock_run.started_at = datetime.fromtimestamp(two_hours_ago, tz=timezone.utc)
+        two_hours_ago = datetime.now(UTC).timestamp() - 7200
+        mock_run.started_at = datetime.fromtimestamp(two_hours_ago, tz=UTC)
         mock_run.conversation_id = "conv-1"
 
         mock_result = MagicMock()

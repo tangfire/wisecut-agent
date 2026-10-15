@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -217,9 +216,9 @@ class TestApprovalService:
 
     @pytest.mark.asyncio
     async def test_decide_approval(self):
+        from app.persistence.models import ApprovalStatus
         from app.tools import approval as mod
         from app.tools.approval import ApprovalService
-        from app.persistence.models import ApprovalStatus
         from app.tools.contracts import SecurityLevel, ToolContract
         from app.tools.registry import ToolRegistry
 
@@ -391,7 +390,6 @@ class TestToolExecutor:
 
     @pytest.mark.asyncio
     async def test_execute_unregistered_fails(self):
-        from app.tools.contracts import SecurityLevel, ToolContract
         from app.tools.executor import ToolExecutor
         from app.tools.registry import ToolRegistry
         r = ToolRegistry()  # empty

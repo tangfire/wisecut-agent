@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -83,8 +82,9 @@ class TestNormalizeStartInput:
         assert len(result["input_files"]) == 2
 
     def test_start_content_is_json(self):
-        from app.domain.agent_film import normalize_start_input
         import json
+
+        from app.domain.agent_film import normalize_start_input
 
         state = {
             "user_request": "generate a video",

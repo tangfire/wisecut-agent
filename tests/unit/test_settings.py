@@ -93,8 +93,9 @@ class TestProtocolHelpers:
         assert normalize_response_language("") == "zh-CN"
 
     def test_sse_roundtrip(self):
-        from app.protocol.sse import decode_sse_events, encode_sse_event
         import json
+
+        from app.protocol.sse import decode_sse_events, encode_sse_event
 
         data = {"seq": 1, "payload": {"tool_name": "test"}}
         encoded = encode_sse_event("evt-1", "tool.started", data)

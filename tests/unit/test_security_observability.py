@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -37,61 +36,61 @@ class TestSSRFGuard:
         assert validate_external_url("http://example.com/api") == "http://example.com/api"
 
     def test_empty_url_fails(self):
-        from app.security.ssrf import validate_external_url, SSRFValidationError
+        from app.security.ssrf import SSRFValidationError, validate_external_url
 
         with pytest.raises(SSRFValidationError):
             validate_external_url("")
 
     def test_none_url_fails(self):
-        from app.security.ssrf import validate_external_url, SSRFValidationError
+        from app.security.ssrf import SSRFValidationError, validate_external_url
 
         with pytest.raises(SSRFValidationError):
             validate_external_url(None)
 
     def test_no_protocol_fails(self):
-        from app.security.ssrf import validate_external_url, SSRFValidationError
+        from app.security.ssrf import SSRFValidationError, validate_external_url
 
         with pytest.raises(SSRFValidationError):
             validate_external_url("ftp://example.com/file")
 
     def test_localhost_blocked(self):
-        from app.security.ssrf import validate_external_url, SSRFValidationError
+        from app.security.ssrf import SSRFValidationError, validate_external_url
 
         with pytest.raises(SSRFValidationError):
             validate_external_url("http://localhost/video.mp4")
 
     def test_127_0_0_1_blocked(self):
-        from app.security.ssrf import validate_external_url, SSRFValidationError
+        from app.security.ssrf import SSRFValidationError, validate_external_url
 
         with pytest.raises(SSRFValidationError):
             validate_external_url("http://127.0.0.1:8080/video.mp4")
 
     def test_ipv6_loopback_blocked(self):
-        from app.security.ssrf import validate_external_url, SSRFValidationError
+        from app.security.ssrf import SSRFValidationError, validate_external_url
 
         with pytest.raises(SSRFValidationError):
             validate_external_url("http://[::1]/video.mp4")
 
     def test_zero_dot_zero_blocked(self):
-        from app.security.ssrf import validate_external_url, SSRFValidationError
+        from app.security.ssrf import SSRFValidationError, validate_external_url
 
         with pytest.raises(SSRFValidationError):
             validate_external_url("http://0.0.0.0/video.mp4")
 
     def test_private_10_x_blocked(self):
-        from app.security.ssrf import validate_external_url, SSRFValidationError
+        from app.security.ssrf import SSRFValidationError, validate_external_url
 
         with pytest.raises(SSRFValidationError):
             validate_external_url("http://10.0.0.1/internal")
 
     def test_private_172_16_x_blocked(self):
-        from app.security.ssrf import validate_external_url, SSRFValidationError
+        from app.security.ssrf import SSRFValidationError, validate_external_url
 
         with pytest.raises(SSRFValidationError):
             validate_external_url("http://172.16.0.1/internal")
 
     def test_private_192_168_x_blocked(self):
-        from app.security.ssrf import validate_external_url, SSRFValidationError
+        from app.security.ssrf import SSRFValidationError, validate_external_url
 
         with pytest.raises(SSRFValidationError):
             validate_external_url("http://192.168.1.1/internal")
@@ -106,13 +105,13 @@ class TestSSRFGuard:
             assert result == "http://192.168.1.1/internal"
 
     def test_blocked_port_22(self):
-        from app.security.ssrf import validate_external_url, SSRFValidationError
+        from app.security.ssrf import SSRFValidationError, validate_external_url
 
         with pytest.raises(SSRFValidationError, match="Port 22 is blocked"):
             validate_external_url("http://example.com:22/ssh")
 
     def test_blocked_port_3306(self):
-        from app.security.ssrf import validate_external_url, SSRFValidationError
+        from app.security.ssrf import SSRFValidationError, validate_external_url
 
         with pytest.raises(SSRFValidationError, match="Port 3306 is blocked"):
             validate_external_url("http://example.com:3306/mysql")
@@ -154,7 +153,7 @@ class TestAuthorization:
         )
 
     def test_different_user_denied(self):
-        from app.security.authz import verify_conversation_access, AuthorizationError
+        from app.security.authz import AuthorizationError, verify_conversation_access
 
         req = self._make_request(user_id="1001")
         with pytest.raises(AuthorizationError):
@@ -187,7 +186,7 @@ class TestAuthorization:
         )
 
     def test_different_project_denied(self):
-        from app.security.authz import verify_conversation_access, AuthorizationError
+        from app.security.authz import AuthorizationError, verify_conversation_access
 
         req = self._make_request(project_id="2001")
         with pytest.raises(AuthorizationError):
@@ -198,7 +197,7 @@ class TestAuthorization:
             )
 
     def test_verify_run_access_uses_conversation(self):
-        from app.security.authz import verify_run_access, AuthorizationError
+        from app.security.authz import AuthorizationError, verify_run_access
 
         req = self._make_request(user_id="1001")
         with pytest.raises(AuthorizationError):
@@ -236,7 +235,7 @@ class TestFileUploadValidation:
         assert len(result) == 2
 
     def test_too_many_files_fails(self):
-        from app.security.upload import validate_input_files, FileUploadError
+        from app.security.upload import FileUploadError, validate_input_files
 
         files = [
             {"url": f"https://example.com/file{i}.jpg", "name": f"f{i}.jpg"}
@@ -246,7 +245,7 @@ class TestFileUploadValidation:
             validate_input_files(files)
 
     def test_file_too_large_fails(self):
-        from app.security.upload import validate_input_files, FileUploadError
+        from app.security.upload import FileUploadError, validate_input_files
 
         files = [
             {"url": "https://example.com/huge.mp4", "name": "huge.mp4", "size": 100 * 1024 * 1024},
@@ -255,7 +254,7 @@ class TestFileUploadValidation:
             validate_input_files(files)
 
     def test_total_size_exceeded_fails(self):
-        from app.security.upload import validate_input_files, FileUploadError
+        from app.security.upload import FileUploadError, validate_input_files
 
         files = [
             {"url": f"https://example.com/file{i}.mp4", "name": f"f{i}.mp4", "size": 20 * 1024 * 1024}
@@ -265,7 +264,7 @@ class TestFileUploadValidation:
             validate_input_files(files)
 
     def test_file_without_extension_fails(self):
-        from app.security.upload import validate_input_files, FileUploadError
+        from app.security.upload import FileUploadError, validate_input_files
 
         files = [
             {"url": "https://example.com/noext", "name": "noext"},
@@ -280,7 +279,7 @@ class TestFileUploadValidation:
         assert result == []
 
     def test_not_a_list_fails(self):
-        from app.security.upload import validate_input_files, FileUploadError
+        from app.security.upload import FileUploadError, validate_input_files
 
         with pytest.raises(FileUploadError):
             validate_input_files("not a list")
