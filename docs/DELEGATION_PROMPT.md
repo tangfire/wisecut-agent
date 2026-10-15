@@ -28,6 +28,15 @@
 - 未经我明确要求，不要 push 到远端 GitHub。
 
 本轮开始时请先检查 Git 状态，阅读重基线审计，并确认当前为 WP-11。先修复 Worker no-op、GraphRunner stub、interrupt/resume、真实 Graph 事件链、依赖锁、ruff、mypy、RabbitMQ 端口和权限接入。WP-11 未完成前不要开始独立 Vue 前端。不能在当前工作轮次完成时，请停在真实完成点，更新 execution.md，明确记录已完成、未完成、测试输出、commit 和下一步，而不是虚报完成。
+
+当前是 WP-11 R6 崩溃恢复点：
+- 已提交 `40aa7ac`：全量 Ruff clean、334 个 pytest、mypy 降到 79。
+- 已提交 `4c02ffb`：隔离开发 Compose 和 Dockerfile 基线。
+- 已提交 `c9d1dc4`：记录崩溃恢复点。
+- 当前工作区仍有 12 个未提交文件，涉及 `app/main.py`、`app/persistence/engine.py`、`compose.yaml`、`docker/Dockerfile`、`requirements.txt` 和测试文件。
+- 严禁 reset、checkout、clean 或覆盖这些未提交改动。先逐个审阅 diff，再决定拆分提交。
+- 当前验证基线：`pytest tests -q` 为 334 passed，`python -m ruff check app tests` 通过，`python -m mypy app --ignore-missing-imports` 为 79 errors，`docker-compose -f compose.yaml config --quiet` 通过。
+- 下一步是启动隔离 PostgreSQL、RabbitMQ、Redis、MinIO，验证 OutboxPublisher、Worker、GraphRunner、SSE 和恢复链路；Real Provider 留到 WP-14。
 ```
 
 ## 智能体每轮结束时必须返回
