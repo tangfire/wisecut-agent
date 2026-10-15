@@ -67,7 +67,7 @@ docs(agent): update deployment and troubleshooting
 | WP-08 Agent Film 业务图 | 7.1、7.2、7.3 | [~] | `4f0467f` | 领域函数存在；当前为启发式且没有真实 LLM/Graph 执行 |
 | WP-09 媒体和 Artifact 能力 | 8.2、8.3、9.5 | [~] | `765847f` | Demo 流程存在；Real Provider 未实现，没有真实 MP4 |
 | WP-10 安全和可观测性 | 11、12 | [~] | `1cb257f` | 模块存在；鉴权未接入路由，固定身份 fallback 未移除 |
-| WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [~] | `525db05` | 当前工作包；修复 Worker/Graph/HITL/LLM/静态检查 |
+| WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [~] | `4c02ffb` | R1-R5 已提交；R6 崩溃前留下未提交 Compose/引擎/测试改动，真实依赖验证未完成 |
 | WP-12 独立产品领域与 Product API | 5.5、9.6 | [ ] | - | 用户、workspace、project、asset、认证、上传 |
 | WP-13 独立 Vue Agent Film Web | 13.4 | [ ] | - | 项目、工作台、交互卡、视频预览下载 |
 | WP-14 真实 LLM 与视频生成 API | 7.4、8.3 | [ ] | - | OpenAI-compatible、远程视频任务、Webhook/轮询、产物归档 |
@@ -1059,19 +1059,32 @@ docs(agent): update deployment and troubleshooting
 
 完成 commit：`40aa7ac`
 
-#### 第六轮（进行中）：mypy 继续修复 + Docker Compose + 真实依赖验证
+#### 第六轮（崩溃恢复点，2026-10-15）：mypy 继续修复 + Docker Compose + 真实依赖验证
 
-- [ ] mypy 79 → 0
-- [ ] 新增 Agent 独立开发 Compose（隔离端口）
-- [ ] 真实 PostgreSQL、RabbitMQ、Redis 容器验证 Outbox/Worker/GraphRunner/SSE
-- [ ] 记录容器状态和验证结果到 execution.md
-- [ ] WP-11 闭环证据记录完成前不标记 [x]
+- [x] 创建并提交 Agent 独立开发 Compose 基线（`4c02ffb`）。
+- [x] 创建并提交 Dockerfile 基线（`4c02ffb`）。
+- [x] `docker-compose -f compose.yaml config --quiet` 当前配置校验通过。
+- [x] 当前全量 pytest：334 passed，3 warnings。
+- [x] 当前全量 ruff：`python -m ruff check app tests` 通过。
+- [ ] 当前 mypy：79 errors，继续收敛到 0。
+- [ ] 启动隔离 PostgreSQL、RabbitMQ、Redis、MinIO 容器。
+- [ ] 真实验证 Alembic、OutboxPublisher、RabbitMQ Worker、GraphRunner、SSE 和恢复。
+- [ ] 记录容器状态、命令、日志和数据库证据。
+- [ ] 提交当前 12 个未提交文件，提交前必须完成测试和 diff review。
+- [ ] WP-11 闭环证据记录完成前不标记 `[x]`。
 
 本轮未完成（留在 WP-11 后续轮次）：
 
 - [ ] mypy 79 → 0（剩余错误在 tools/executor/policy/registry、observability/tracing、providers/demo、persistence/engine、llm/factory）
 - [ ] OutboxPublisher 真实 RabbitMQ 发布验证
 - [ ] Worker/GraphRunner/SSE 真实依赖验证
+
+崩溃恢复注意事项：
+
+- 当前工作区的未提交改动属于智能体第六轮草稿，不能 reset、checkout 或覆盖。
+- 未提交文件包括 `app/main.py`、`app/persistence/engine.py`、`compose.yaml`、`docker/Dockerfile`、`requirements.txt` 以及相关测试文件。
+- `4c02ffb` 是已提交的 Compose/Docker 基线；当前工作区对它的端口、数据库驱动和 API/测试仍有进一步修改。
+- 下一次应先读取这些 diff、运行验证，再决定拆分提交，不能从 WP-11 第一轮重新开始。
 
 ### WP-12 独立产品领域与 Product API
 
@@ -1288,7 +1301,7 @@ docs(agent): update deployment and troubleshooting
 | 2026-10-15 | WP-11 R2 | `5123600` | 质量纠偏：mypy 162→144、LLM 接入 script/storyboard、权限校验补全、ruff clean | `pytest: 331 passed`；`ruff: clean`；`mypy: 144 errors` |
 | 2026-10-15 | WP-11 R3 | `e35f8af` | 类型纠偏：mypy 144→117、worker/Redis/ repositories 类型修复、无类型注解清理 | `pytest: 331 passed`；`mypy: 117 errors` |
 | 2026-10-15 | WP-11 R5 | `40aa7ac` | 全量 ruff clean、StrEnum 迁移、authz 补全、tools 导入修复、334 tests | `ruff: 0 errors`；`pytest: 334 passed` |
-| 2026-10-15 | WP-11 R5 待收口 | 未提交 | API 权限接入和 Worker 类型小修仍在工作区；等待测试、提交和真实依赖验证 | 当前全量 `pytest: 331 passed`；全量 `ruff: 81 errors`；mypy 目标继续收敛 |
+| 2026-10-15 | WP-11 R6 崩溃恢复点 | 未提交 | Compose/Docker 后续调整、引擎/依赖/测试修改仍在工作区 | `pytest: 334 passed`；`ruff app tests: clean`；`mypy: 79 errors`；Compose config 通过 |
 
 ## 5. 验证记录
 
@@ -1356,6 +1369,32 @@ Fixture: 17 个 Go Client 可读取的 JSON fixture
 结果：<退出码>
 关键输出：<passed/failed、容器状态、接口状态等>
 关联 commit：<hash>
+```
+
+### 5.4 WP-11 第六轮崩溃恢复验证
+
+```text
+日期：2026-10-15
+工作包：WP-11 R6
+
+命令：python -m pytest tests -q
+结果：退出码 0
+关键输出：334 passed in 16.08s，3 warnings
+
+命令：python -m ruff check app tests
+结果：退出码 0
+关键输出：All checks passed
+
+命令：python -m mypy app --ignore-missing-imports
+结果：非零
+关键输出：Found 79 errors in 23 files
+
+命令：docker-compose -f compose.yaml config --quiet
+结果：退出码 0
+关键输出：Compose 配置解析通过
+
+当前未提交：12 个文件，包含 Compose/Docker、数据库引擎、依赖和测试调整。
+下一步：先审阅并提交这些改动，再启动隔离依赖容器完成 Outbox/Worker/GraphRunner/SSE 真实验证。
 ```
 
 ## 6. 决策和变更记录
