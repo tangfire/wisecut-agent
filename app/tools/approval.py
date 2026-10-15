@@ -16,6 +16,7 @@ from app.persistence.repositories import (
     ApprovalRepository,
     EventRepository,
     OutboxRepository,
+    ToolExecutionRepository,
 )
 from app.persistence.unit_of_work import unit_of_work
 from app.protocol.language import generate_id

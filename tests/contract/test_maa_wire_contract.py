@@ -10,7 +10,6 @@ Go Client reference: internal/third_party/maa/agent/
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
 import jsonschema
@@ -30,12 +29,12 @@ ARTIFACT_SCHEMAS_DIR = SCHEMAS_DIR / "schemas" / "artifacts"
 # ---------------------------------------------------------------------------
 
 def _load_schema(path: Path) -> dict:
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
 def _load_fixture(path: Path) -> dict:
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -791,7 +790,7 @@ class TestTerminalEventContract:
 # Test: artifact and business.message contract
 # ---------------------------------------------------------------------------
 
-class TestArtifactContract:
+class TestArtifactBusinessMessageContract:
     """final_video artifact contract."""
 
     def test_final_video_business_message_schema_validates(self):

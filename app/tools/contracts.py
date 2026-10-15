@@ -9,11 +9,11 @@ Security levels (plan.md §8.4):
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class SecurityLevel(str, Enum):
+class SecurityLevel(StrEnum):
     """Tool risk classification."""
 
     L0 = "L0"  # Pure function, no external side effects
@@ -22,7 +22,7 @@ class SecurityLevel(str, Enum):
     L3 = "L3"  # Billing / publish / delete, requires approval (require)
 
 
-class ApprovalRequirement(str, Enum):
+class ApprovalRequirement(StrEnum):
     """Whether a tool requires approval before execution."""
 
     NONE = "none"      # No approval needed

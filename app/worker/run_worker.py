@@ -192,6 +192,7 @@ class RunWorker:
                     max_retries=max_retries,
                     attempt=attempt,
                     result_future=result_future,
+                    loop=loop,
                 )
             except Exception as exc:
                 if not result_future.done():
@@ -246,6 +247,7 @@ class RunWorker:
         max_retries: int,
         attempt: int,
         result_future: asyncio.Future[None],
+        loop: asyncio.AbstractEventLoop,
     ) -> None:
         """Async processing: cancel check, lock, handler."""
         import redis.asyncio as aioredis
@@ -288,7 +290,7 @@ class RunWorker:
             if not result_future.done():
                 result_future.set_exception(exc)
         finally:
-            await redis_client.close()  # type: ignore[attr-defined]
+            await redis_client.close()
 
     async def _default_handler(
         self,

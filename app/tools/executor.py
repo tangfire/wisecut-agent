@@ -26,7 +26,7 @@ from typing import Any
 from app.persistence.unit_of_work import unit_of_work
 from app.tools.contracts import SecurityLevel, ToolResult
 from app.tools.policy import PolicyViolation, ToolPolicy
-from app.tools.registry import get_registry
+from app.tools.registry import ToolRegistry, get_registry
 
 logger = logging.getLogger(__name__)
 

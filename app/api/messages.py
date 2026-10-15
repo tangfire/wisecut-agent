@@ -6,6 +6,7 @@ from fastapi import APIRouter, Request, status
 
 from app.application.services import MessageService
 from app.persistence.unit_of_work import unit_of_work
+from app.security.authz import verify_conversation_access
 
 router = APIRouter()
 
@@ -32,6 +33,16 @@ async def list_messages(request: Request, conversation_id: str):
     """Return all messages for the conversation."""
     _ = _extract_maa_context(request)
     async with unit_of_work() as uow:
+        conv_repo = uow.conversations
+        conv = await conv_repo.get_by_id(conversation_id)
+        if conv is None:
+            from app.core.exceptions import ConversationNotFound
+            raise ConversationNotFound(conversation_id)
+        verify_conversation_access(
+            conversation_user_id=conv.user_id,
+            conversation_project_id=conv.project_id,
+            request=request,
+        )
         repo = uow.messages
         messages = await repo.get_by_conversation(conversation_id)
         return [
@@ -89,6 +100,16 @@ async def post_message(request: Request, conversation_id: str, body: dict):
                 detail="interaction_response requires interaction_id and action",
             )
         async with unit_of_work() as uow:
+            conv_repo = uow.conversations
+            conv = await conv_repo.get_by_id(conversation_id)
+            if conv is None:
+                from app.core.exceptions import ConversationNotFound
+                raise ConversationNotFound(conversation_id)
+            verify_conversation_access(
+                conversation_user_id=conv.user_id,
+                conversation_project_id=conv.project_id,
+                request=request,
+            )
             service = MessageService(uow)
             result = await service.post_interaction_response(
                 conversation_id=conversation_id,
@@ -102,6 +123,16 @@ async def post_message(request: Request, conversation_id: str, body: dict):
             return result
 
     async with unit_of_work() as uow:
+        conv_repo = uow.conversations
+        conv = await conv_repo.get_by_id(conversation_id)
+        if conv is None:
+            from app.core.exceptions import ConversationNotFound
+            raise ConversationNotFound(conversation_id)
+        verify_conversation_access(
+            conversation_user_id=conv.user_id,
+            conversation_project_id=conv.project_id,
+            request=request,
+        )
         service = MessageService(uow)
         result = await service.post_message(
             conversation_id=conversation_id,

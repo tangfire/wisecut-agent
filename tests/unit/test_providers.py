@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import os
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -30,7 +30,7 @@ class TestBaseProvider:
             BaseProvider("test")
 
     def test_subclass_must_implement_execute(self):
-        from app.providers.base import BaseProvider, ProviderResult
+        from app.providers.base import BaseProvider
 
         class IncompleteProvider(BaseProvider):
             async def health_check(self):
@@ -40,7 +40,7 @@ class TestBaseProvider:
             IncompleteProvider("test")
 
     def test_subclass_must_implement_health_check(self):
-        from app.providers.base import BaseProvider
+        from app.providers.base import BaseProvider, ProviderResult
 
         class IncompleteProvider(BaseProvider):
             async def execute(self, **kwargs):

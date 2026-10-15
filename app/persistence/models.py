@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from sqlalchemy import (
@@ -33,7 +33,7 @@ class Base(DeclarativeBase):
     pass
 
 
-class ConversationStatus(str, Enum):
+class ConversationStatus(StrEnum):
     CREATED = "created"
     ACTIVE = "active"
     WAITING_INTERACTION = "waiting_interaction"
@@ -43,7 +43,7 @@ class ConversationStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-class RunStatus(str, Enum):
+class RunStatus(StrEnum):
     QUEUED = "queued"
     RUNNING = "running"
     WAITING_INTERACTION = "waiting_interaction"
@@ -54,21 +54,21 @@ class RunStatus(str, Enum):
     CANCELLED = "cancelled"
 
 
-class ApprovalStatus(str, Enum):
+class ApprovalStatus(StrEnum):
     PENDING = "pending"
     APPROVED = "approved"
     DENIED = "denied"
     EXPIRED = "expired"
 
 
-class ArtifactStatus(str, Enum):
+class ArtifactStatus(StrEnum):
     PENDING = "pending"
     READY = "ready"
     EXPIRED = "expired"
     FAILED = "failed"
 
 
-class EventSource(str, Enum):
+class EventSource(StrEnum):
     MAA = "maa"
     SYSTEM = "system"
     USER = "user"

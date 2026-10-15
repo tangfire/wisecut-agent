@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -341,11 +340,6 @@ class TestCreateFinalVideoArtifact:
         assert "business.message" in result["events"]
 
     def test_invalid_url_fails(self):
-        from app.domain.agent_film import create_final_video_artifact
-
-        state = {"conversation_id": "conv-1", "run_id": "run-1"}
-
-        result = AsyncMock(return_value={"success": False, "error": "video_url is empty"})
         # Since this is a sync test, we just check the validation part
         from app.domain.agent_film import validate_video_delivery
         assert validate_video_delivery("")["valid"] is False

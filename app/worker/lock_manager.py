@@ -64,7 +64,7 @@ class ConversationLock:
         """Extend the lock TTL. Safe to call repeatedly."""
         if self._released:
             return
-        data = json.dumps({"run_id": self._run_id, "ts": time.time()})
+        json.dumps({"run_id": self._run_id, "ts": time.time()})  # Kept for potential future use
         await self._redis.expire(self._key, self._ttl)
 
     async def release(self) -> None:

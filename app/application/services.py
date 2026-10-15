@@ -195,7 +195,7 @@ class MessageService:
                 }
 
         message_id = f"msg-{uuid4().hex[:12]}"
-        msg = await self._messages.create(
+        _msg = await self._messages.create(
             message_id=message_id,
             conversation_id=conversation_id,
             run_id=run_id,
@@ -279,7 +279,7 @@ class MessageService:
             content_obj = content
 
         message_id = f"msg-{uuid4().hex[:12]}"
-        msg = await self._messages.create(
+        _msg = await self._messages.create(
             message_id=message_id,
             conversation_id=conversation_id,
             run_id=run_id,

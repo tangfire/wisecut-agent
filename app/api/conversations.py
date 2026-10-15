@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from app.application.services import ConversationService
 from app.core.exceptions import ConversationNotFound
 from app.persistence.unit_of_work import unit_of_work
+from app.security.authz import verify_conversation_access
 
 router = APIRouter()
 
@@ -103,6 +104,15 @@ async def get_conversation(request: Request, conversation_id: str):
     """Get conversation snapshot with active run, messages, interactions, and events."""
     _extract_maa_context(request)
     async with unit_of_work() as uow:
+        conv_repo = uow.conversations
+        conv = await conv_repo.get_by_id(conversation_id)
+        if conv is None:
+            raise ConversationNotFound(conversation_id)
+        verify_conversation_access(
+            conversation_user_id=conv.user_id,
+            conversation_project_id=conv.project_id,
+            request=request,
+        )
         service = ConversationService(uow)
         detail = await service.get_detail(conversation_id)
         if detail is None:

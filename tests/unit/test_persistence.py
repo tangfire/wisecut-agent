@@ -4,10 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
-from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
-
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
@@ -358,16 +355,15 @@ class TestSSEFormatting:
 class TestTimeStrategy:
     async def test_utc_storage_and_shanghai_display(self):
         """All timestamps are stored in UTC and converted to Asia/Shanghai for display."""
+
         from app.persistence.repositories import ConversationRepository
-        from zoneinfo import ZoneInfo
 
         session = _make_session()
         repo = ConversationRepository(session)
         session.add = MagicMock()
         session.flush = AsyncMock()
 
-        now_utc = datetime.now(timezone.utc)
-        conv = await repo.create(
+        await repo.create(
             conversation_id="conv-1",
             user_id="user-1",
             project_id="proj-1",
@@ -376,7 +372,6 @@ class TestTimeStrategy:
         )
 
         # Verify the timestamp is timezone-aware UTC
-        shanghai_tz = ZoneInfo("Asia/Shanghai")
         # The _now() method should return a timezone-aware datetime in UTC
         now = repo._now()
         assert now.tzinfo is not None, "Timestamps must be timezone-aware (UTC)"

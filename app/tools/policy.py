@@ -12,7 +12,7 @@ import logging
 from typing import Any
 
 from app.tools.contracts import SecurityLevel, ToolContract
-from app.tools.registry import get_registry
+from app.tools.registry import ToolRegistry, get_registry
 
 logger = logging.getLogger(__name__)
 
