@@ -29,15 +29,30 @@
 
 本轮开始时请先检查 Git 状态，阅读重基线审计，并确认当前为 WP-11。先修复 Worker no-op、GraphRunner stub、interrupt/resume、真实 Graph 事件链、依赖锁、ruff、mypy、RabbitMQ 端口和权限接入。WP-11 未完成前不要开始独立 Vue 前端。不能在当前工作轮次完成时，请停在真实完成点，更新 execution.md，明确记录已完成、未完成、测试输出、commit 和下一步，而不是虚报完成。
 
-当前是 WP-11 R6 崩溃恢复点：
+当前是 WP-11 拆进程后的崩溃恢复点：
 - 已提交 `40aa7ac`：全量 Ruff clean、334 个 pytest、mypy 降到 79。
 - 已提交 `4c02ffb`：隔离开发 Compose 和 Dockerfile 基线。
-- 已提交 `c9d1dc4`：记录崩溃恢复点。
-- 当前工作区仍有 12 个未提交文件，涉及 `app/main.py`、`app/persistence/engine.py`、`compose.yaml`、`docker/Dockerfile`、`requirements.txt` 和测试文件。
-- 严禁 reset、checkout、clean 或覆盖这些未提交改动。先逐个审阅 diff，再决定拆分提交。
-- 当前验证基线：`pytest tests -q` 为 334 passed，`python -m ruff check app tests` 通过，`python -m mypy app --ignore-missing-imports` 为 79 errors，`docker-compose -f compose.yaml config --quiet` 通过。
-- 下一步是启动隔离 PostgreSQL、RabbitMQ、Redis、MinIO，验证 OutboxPublisher、Worker、GraphRunner、SSE 和恢复链路；Real Provider 留到 WP-14。
-- R6 最新诊断：不要直接把 async SQLAlchemy 全量迁移到同步 psycopg2。当前 Compose 把 `ENABLE_WORKER=true` 放在 Uvicorn API 容器中，API 主事件循环和 Worker 线程事件循环共享全局 AsyncEngine/asyncpg pool，这是 `POST /conversations` 返回 500 的首要嫌疑。优先把 API、Worker、OutboxPublisher 拆成独立进程/Compose 服务，各自拥有自己的事件循环和 DB pool，然后重新验证真实 POST。
+- 已提交 `1eeb5ea`、`6a997fd`：Docker 稳定性、readiness 和依赖调整。
+- 已提交 `d186dbb`、`9bef3c9`、`c9d1dc4`、`94c3317`：崩溃恢复、拆进程架构和执行记录。
+- 当前 API 与 Worker 已拆成两个容器；API 的 `ENABLE_WORKER=false`，Worker 独立运行。
+- `POST /conversations` 已真实返回 `201 Created`，`POST /messages` 已返回 `200` 并发布 Run command。
+- 当前 `wisecut-agent-worker` 进程在运行，但容器被错误的 API HTTP healthcheck 标记为 unhealthy。
+- 当前 `docker/worker_entrypoint.py` 创建的是 `RunWorker()`，没有注入 `GraphRunner().execute_run`，所以可能仍使用 `_default_handler`，这是当前第一优先级问题。
+- RabbitMQ `maa.run.commands` 有 consumer，但消息进入 DLQ；完整 API -> Outbox -> RabbitMQ -> Worker -> Graph -> SSE 链路尚未通过。
+- 当前工作区仍有 11 个已修改文件和 3 个未跟踪文件，包含 Compose、Docker、API、Worker、同步数据库适配和测试调整。严禁 `reset`、`checkout`、`clean` 或覆盖这些改动；先逐个审阅 diff。
+- 当前验证基线：`pytest tests -q` 为 334 passed，`python -m ruff check app tests` 通过，`python -m mypy app --ignore-missing-imports` 为 79 errors，Compose 配置解析通过。
+- Real Provider 留到 WP-14，不要在 WP-11 中实现。
+- 不要直接把全项目迁移到同步 psycopg2；先修 Worker healthcheck 和 GraphRunner 注入，再验证真实消息链。
+
+本次恢复任务必须按以下顺序：
+1. 读取并审阅所有未提交 diff，确认不丢失智能体已有工作。
+2. 将 agent-worker 的 healthcheck 改为进程存活或 Worker 心跳检查，不访问 `localhost:10728/health`。
+3. 在 `docker/worker_entrypoint.py` 注入 `GraphRunner().execute_run`，禁止使用默认 no-op handler。
+4. 明确 OutboxPublisher 是独立服务还是 Worker 内部服务，并保证有独立生命周期、重试和日志。
+5. 隔离/清理旧 DLQ 测试消息后，重新发送单条测试消息。
+6. 验证 Run 状态、事件落库、Graph 执行、SSE 和 terminal event。
+7. 修复后运行 pytest、ruff、mypy 和 Compose/容器验证，更新 execution.md 并提交聚焦 commit。
+8. WP-11 未有完整链路证据时，不得标记 `[x]`，也不得进入 WP-12。
 ```
 
 ## 智能体每轮结束时必须返回
