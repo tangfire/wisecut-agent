@@ -9,6 +9,7 @@ from fastapi import APIRouter, Request
 
 from app.core.exceptions import ArtifactNotFound
 from app.persistence.unit_of_work import unit_of_work
+from app.security.authz import verify_conversation_access
 
 router = APIRouter()
 
@@ -30,6 +31,15 @@ async def get_artifact(request: Request, conversation_id: str, artifact_id: str)
         # Verify artifact belongs to the conversation
         if artifact.conversation_id != conversation_id:
             raise ArtifactNotFound(conversation_id, artifact_id)
+
+        # Permission check: verify via the artifact's conversation
+        conv_for_auth = await uow.conversations.get_by_id(artifact.conversation_id)
+        if conv_for_auth:
+            verify_conversation_access(
+                conversation_user_id=conv_for_auth.user_id,
+                conversation_project_id=conv_for_auth.project_id,
+                request=request,
+            )
 
         return {
             "artifact": {

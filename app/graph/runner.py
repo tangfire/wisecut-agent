@@ -87,10 +87,10 @@ class GraphRunner:
                 logger.error("Run not found", extra={"run_id": run_id})
                 return {"status": "error", "error": "run_not_found"}
 
-            conv_repo = session.__class__
             from sqlalchemy import select
 
             from app.persistence.models import Conversation
+
             execute_result = await session.execute(
                 select(Conversation).where(Conversation.id == conversation_id)
             )
@@ -231,7 +231,7 @@ class GraphRunner:
             return {"status": "waiting_interaction"}
         finally:
             try:
-                await redis_client.aclose()  # type: ignore[attr-defined]
+                await redis_client.close()  # type: ignore[attr-defined]
             except Exception:
                 pass
 
@@ -268,7 +268,7 @@ class GraphRunner:
             return {"status": "waiting_interaction"}
         finally:
             try:
-                await redis_client.aclose()  # type: ignore[attr-defined]
+                await redis_client.close()  # type: ignore[attr-defined]
             except Exception:
                 pass
 

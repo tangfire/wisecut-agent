@@ -8,6 +8,7 @@ from sse_starlette import EventSourceResponse
 from app.application.services import EventService, RunService
 from app.persistence.unit_of_work import unit_of_work
 from app.protocol.sse import encode_sse_event
+from app.security.authz import verify_run_access
 
 router = APIRouter()
 
@@ -39,7 +40,7 @@ async def stream_events(request: Request, run_id: str):
 
     _ = _extract_maa_context(request)
 
-    # Verify run exists (404 check before streaming)
+    # Verify run exists and check access
     async with unit_of_work() as uow:
         run_repo = uow.runs
         run = await run_repo.get_by_id(run_id)
@@ -47,6 +48,17 @@ async def stream_events(request: Request, run_id: str):
             async def error_generator():
                 yield encode_sse_event("error", {"error": f"run not found: {run_id}"}, "error-1")
             return EventSourceResponse(error_generator())
+
+        # Permission check: verify requester can access this run's conversation
+        conv_repo = uow.conversations
+        conv = await conv_repo.get_by_id(run.conversation_id)
+        if conv:
+            verify_run_access(
+                run_conversation_id=run.conversation_id,
+                request=request,
+                conversation_user_id=conv.user_id,
+                conversation_project_id=conv.project_id,
+            )
 
     async def event_generator():
         """Generate SSE events matching Go Client's expectations."""
@@ -79,6 +91,23 @@ async def cancel_run(request: Request, run_id: str):
     """Request cancellation of the given run."""
     _ = _extract_maa_context(request)
     async with unit_of_work() as uow:
+        run_repo = uow.runs
+        run = await run_repo.get_by_id(run_id)
+        if run is None:
+            from app.core.exceptions import RunNotFound
+            raise RunNotFound(run_id)
+
+        # Permission check
+        conv_repo = uow.conversations
+        conv = await conv_repo.get_by_id(run.conversation_id)
+        if conv:
+            verify_run_access(
+                run_conversation_id=run.conversation_id,
+                request=request,
+                conversation_user_id=conv.user_id,
+                conversation_project_id=conv.project_id,
+            )
+
         service = RunService(uow)
         result = await service.cancel_run(run_id)
         return result

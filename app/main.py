@@ -11,6 +11,7 @@ Starts the API server on port 10728 with:
 from __future__ import annotations
 
 import time
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -31,7 +32,7 @@ logger = get_logger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan: startup and shutdown hooks."""
     settings = app.state.settings
     logger.info(
@@ -93,7 +94,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
 
     @app.middleware("http")
-    async def metrics_middleware(request: Request, call_next):
+    async def metrics_middleware(request: Request, call_next: Any) -> Any:
         """Record HTTP request metrics."""
         from app.observability.metrics import metrics as collector
         start = time.perf_counter()
@@ -119,7 +120,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     if settings.enable_rate_limit:
         @app.middleware("http")
-        async def rate_limit_middleware(request: Request, call_next):
+        async def rate_limit_middleware(request: Request, call_next: Any) -> Any:
             """Simple per-user rate limiting."""
             from app.security.rate_limit import get_rate_limiter
             limiter = get_rate_limiter()
@@ -146,7 +147,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return response
 
     @app.middleware("http")
-    async def request_context_middleware(request: Request, call_next):
+    async def request_context_middleware(request: Request, call_next: Any) -> Any:
         """Inject trace_id, request_id, and MAA headers into request state and logs."""
         trace_id = request.headers.get("X-Trace-ID", str(__import__("uuid").uuid4()))
         request_id = request.headers.get("X-Request-ID", str(__import__("uuid").uuid4()))
@@ -203,7 +204,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # ---- Exception handlers ----
     @app.exception_handler(MAAException)
-    async def maa_exception_handler(request: Request, exc: MAAException):
+    async def maa_exception_handler(request: Request, exc: MAAException) -> JSONResponse:
         error = exc.to_response()
         logger.warning(
             f"MAA error: {exc.detail}",
@@ -216,7 +217,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return JSONResponse(status_code=exc.status_code, content=error.model_dump())
 
     @app.exception_handler(404)
-    async def not_found_handler(request: Request, exc: Any):
+    async def not_found_handler(request: Request, exc: Any) -> JSONResponse:
         from app.core.exceptions import ErrorResponse
         return JSONResponse(
             status_code=404,
@@ -224,18 +225,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 method=request.method,
                 path=str(request.url.path),
                 status_code=404,
-                detail="not found",
+                body="not found",
             ).model_dump(),
         )
 
     # ---- Health endpoints ----
     @app.get("/health", tags=["Health"], summary="Liveness probe")
-    async def health():
+    async def health() -> dict[str, str]:
         """Liveness check — returns 200 if the process is running."""
         return {"status": "ok"}
 
     @app.get("/ready", tags=["Health"], summary="Readiness probe")
-    async def ready(request: Request):
+    async def ready(request: Request) -> JSONResponse:
         """Readiness check — verifies critical dependencies are reachable."""
         checks: dict[str, Any] = {"status": "ready", "dependencies": {}}
         all_ready = True
@@ -259,7 +260,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             import redis.asyncio as aioredis
             r = aioredis.from_url(settings.redis_url)
             await r.ping()
-            await r.aclose()
+            await r.close()  # type: ignore[attr-defined]
             checks["dependencies"]["redis"] = {"status": "ok"}
         except Exception as exc:
             logger.warning(f"Readiness: redis check failed: {exc}")
@@ -282,7 +283,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return JSONResponse(status_code=status_code, content=checks)
 
     @app.get("/version", tags=["Health"], summary="Service version")
-    async def version(request: Request):
+    async def version(request: Request) -> dict[str, Any]:
         """Return service version and environment."""
         return {
             "service": settings.service_name,
@@ -291,7 +292,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         }
 
     @app.get("/metrics", tags=["Health"], summary="Application metrics")
-    async def metrics_endpoint(request: Request):
+    async def metrics_endpoint(request: Request) -> dict[str, Any]:
         """Return application metrics in JSON format."""
         from app.observability.metrics import metrics as collector
         return collector.to_dict()
@@ -310,7 +311,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         extra={
             "trace_id": None,
             "request_id": None,
-            "routes": [r.path for r in app.routes],
+            "routes": [str(getattr(r, "path", r)) for r in app.routes],
         },
     )
 
@@ -327,10 +328,11 @@ app = create_app()
 if __name__ == "__main__":
     import uvicorn
 
+    _app_settings = app.state.settings
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=settings.port,
-        reload=settings.debug,
-        log_level=settings.log_level.value,
+        port=_app_settings.port,
+        reload=_app_settings.debug,
+        log_level=_app_settings.log_level.value,
     )

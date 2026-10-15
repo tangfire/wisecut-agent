@@ -44,7 +44,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Coroutine
-from typing import Any
+from typing import Any, cast
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, StateGraph
@@ -83,7 +83,7 @@ class AgentFilmGraphBuilder:
 
     def __init__(
         self,
-        checkpointer: BaseCheckpointSaver | None = None,
+        checkpointer: BaseCheckpointSaver[Any] | None = None,
         default_profile_id: str = "one-click-quick",
     ) -> None:
         self._checkpointer = checkpointer
@@ -158,7 +158,9 @@ class AgentFilmGraphBuilder:
         route_map: dict[str, str],
     ) -> AgentFilmGraphBuilder:
         """Add conditional edges from source based on router function."""
-        self._graph.add_conditional_edges(source, router, route_map)
+        self._graph.add_conditional_edges(  # type: ignore[arg-type]
+            source, router, cast("dict[Any, str]", route_map)
+        )
         return self
 
     # ------------------------------------------------------------------
@@ -380,7 +382,7 @@ async def publish_artifacts(state: AgentFilmState) -> dict[str, Any]:
 
 
 def build_default_graph(
-    checkpointer: BaseCheckpointSaver | None = None,
+    checkpointer: BaseCheckpointSaver[Any] | None = None,
     profile_id: str = "one-click-quick",
 ) -> Any:
     """Build the default Agent Film graph with stub nodes.

@@ -15,6 +15,15 @@ from app.domain.agent_film import (
 )
 from app.graph.state import AgentFilmState
 
+__all__ = [
+    "collect_materials",
+    "match_digital_human_node",
+    "render_video_node",
+    "validate_delivery_node",
+    "validate_video_delivery",
+    "publish_artifacts_node",
+]
+
 
 async def collect_materials(state: AgentFilmState) -> dict[str, Any]:
     """Search and select materials for rendering.

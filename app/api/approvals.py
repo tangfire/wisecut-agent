@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from app.core.exceptions import ApprovalNotFound
 from app.persistence.unit_of_work import unit_of_work
+from app.security.authz import verify_conversation_access
 
 router = APIRouter()
 
@@ -48,6 +49,16 @@ async def decide_approval(request: Request, approval_id: str, body: ApprovalDeci
         approval = await approval_repo.get_by_id(approval_id)
         if approval is None:
             raise ApprovalNotFound(approval_id)
+
+        # Permission check: verify requester can access the approval's conversation
+        conv_repo = uow.conversations
+        conv = await conv_repo.get_by_id(approval.conversation_id)
+        if conv:
+            verify_conversation_access(
+                conversation_user_id=conv.user_id,
+                conversation_project_id=conv.project_id,
+                request=request,
+            )
 
         decision_action = body.decision.get("action", "approve")
         decided = await approval_repo.decide(

@@ -3,21 +3,30 @@
 This module contains the actual business logic for:
   - Input normalization (aligns with Go buildStartMessageContent)
   - Product context extraction
-  - Creative strategy generation
-  - Script generation and validation
-  - Storyboard generation
+  - Creative strategy generation (LLM-assisted)
+  - Script generation (LLM-assisted)
+  - Storyboard generation (LLM-assisted)
   - Generation preparation
+  - Material selection (WP-09)
+  - Digital human matching (WP-09)
+  - Video rendering (WP-09)
+  - Video delivery validation (WP-09)
+  - Artifact creation and publishing (WP-09)
 
 WP-08 implements the actual business logic that the graph nodes call.
+WP-11 round 2: script/storyboard use LLM structured output with heuristic fallback.
 """
 from __future__ import annotations
 
 import json
 import logging
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
+
+from pydantic import BaseModel, Field
 
 from app.graph.profiles import get_profile
+from app.llm.factory import create_llm
 from app.persistence.repositories import (
     ArtifactRepository,
     EventRepository,
@@ -30,10 +39,134 @@ from app.providers.materials import MaterialProvider
 from app.providers.research import ProductResearchProvider
 from app.providers.video import VideoRenderProvider
 
+logger = logging.getLogger(__name__)
+
+# Prompt templates for LLM-assisted generation
+_STRATEGY_PROMPT = """Generate a marketing creative strategy for the following product.
+
+Product: {product_name}
+Description: {product_description}
+Selling points: {selling_points}
+Target audience: {target_audience}
+User request: {user_request}
+Mode: {mode}
+
+Return a JSON object with:
+  - marketing_angle: one of [promotional, new_launch, brand_story, feature_focused, general]
+  - tone: one of [concise, detailed, emotional, urgent]
+  - key_messages: list of 3 short selling points
+  - target_emotion: one of [fun, warm, premium, urgency, neutral]
+"""
+
+_SCRIPT_PROMPT = """Generate a video script for the following product.
+
+Product: {product_name}
+Description: {product_description}
+Selling points: {selling_points}
+Marketing angle: {marketing_angle}
+Tone: {tone}
+Target emotion: {target_emotion}
+Duration: {duration} seconds
+Mode: {mode}
+Language: {language}
+
+Generate {num_segments} segments. Each segment must have:
+  - segment: sequential number starting from 1
+  - time: time window like "0-10s"
+  - camera_desc: camera movement/angle description
+  - script_content: voiceover/narration text
+  - screen_text: text shown on screen
+  - core_purpose: one of [introduction, highlight, emotional_connect, call_to_action, brand_intro, feature_demo]
+  - duration_seconds: how long this segment lasts
+
+Return JSON with:
+  - title: catchy video title
+  - total_duration: {duration}
+  - style: one of [fast_paced, inspiring, emotional, informative, balanced]
+  - language: {language}
+  - segments: list of segment objects
+"""
+
+_STORYBOARD_PROMPT = """Convert the following video script into a detailed storyboard.
+
+Script title: {title}
+Style: {style}
+Language: {language}
+
+Script segments:
+{segments_json}
+
+Convert each segment into a storyboard shot with:
+  - shot_number: same as segment number
+  - time_window: same as segment time
+  - camera_description: detailed camera work (angle, movement, transition)
+  - visual_content: what appears on screen (visual description)
+  - voiceover: narration text from the segment
+  - on_screen_text: text overlays
+  - core_purpose: same as segment core_purpose
+  - duration_seconds: same as segment duration
+
+Return JSON with:
+  - title: storyboard title
+  - total_shots: number of shots
+  - style: same as script style
+  - language: same as script language
+  - shots: list of shot objects
+"""
+
+
+# ---------------------------------------------------------------------------
+# Structured output models for LLM (WP-11 round 2)
+# ---------------------------------------------------------------------------
+
+
+class ScriptSegmentModel(BaseModel):
+    segment: int = Field(description="Sequential segment number starting from 1")
+    time: str = Field(description="Time window like '0-10s'")
+    camera_desc: str = Field(description="Camera movement and angle description")
+    script_content: str = Field(description="Voiceover/narration text")
+    screen_text: str = Field(description="Text shown on screen")
+    core_purpose: str = Field(
+        description="One of: introduction, highlight, emotional_connect, call_to_action, brand_intro, feature_demo"
+    )
+    duration_seconds: int = Field(description="Duration of this segment in seconds", ge=1)
+
+
+class ScriptOutput(BaseModel):
+    title: str = Field(description="Catchy video title")
+    total_duration: int = Field(description="Total video duration in seconds", ge=5, le=120)
+    style: str = Field(
+        description="One of: fast_paced, inspiring, emotional, informative, balanced"
+    )
+    language: str = Field(description="Language code like zh-CN or en-US")
+    segments: list[ScriptSegmentModel] = Field(
+        description="List of script segments", min_length=1, max_length=8
+    )
+
+
+class StoryboardShotModel(BaseModel):
+    shot_number: int = Field(description="Sequential shot number", ge=1)
+    time_window: str = Field(description="Time window like '0-10s'")
+    camera_description: str = Field(description="Detailed camera work description")
+    visual_content: str = Field(description="What appears on screen")
+    voiceover: str = Field(description="Narration/voiceover text")
+    on_screen_text: str = Field(description="Text overlay on screen")
+    core_purpose: str = Field(description="Purpose of this shot")
+    duration_seconds: int = Field(description="Duration in seconds", ge=1)
+
+
+class StoryboardOutput(BaseModel):
+    title: str = Field(description="Storyboard title")
+    total_shots: int = Field(description="Total number of shots", ge=1, le=10)
+    style: str = Field(description="Visual style")
+    language: str = Field(description="Language code")
+    shots: list[StoryboardShotModel] = Field(
+        description="List of storyboard shots", min_length=1, max_length=10
+    )
+
+
 if TYPE_CHECKING:
     from app.graph.state import AgentFilmState
-
-logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -128,7 +261,6 @@ def _build_start_message_content(
     """
     # Split files: images/audio/video → material_assets; documents → files
     material_extensions = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".mp4", ".mov", ".avi", ".mp3", ".wav", ".aac"}
-    document_extensions = {".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt", ".csv"}
 
     documents = []
     material_assets = []
@@ -326,14 +458,13 @@ def build_product_context_interaction(state: AgentFilmState) -> dict[str, Any]:
 async def generate_creative_strategy(state: AgentFilmState) -> dict[str, Any]:
     """Generate marketing creative strategy.
 
-    Uses LLM to generate:
+    Uses LLM with structured output to generate:
       - marketing_angle
       - tone
       - key_messages
       - target_emotion
 
-    In a real implementation, this would call the LLM with a structured
-    output schema. For WP-08, we use a heuristic approach.
+    Falls back to heuristic approach if LLM fails.
 
     Returns state update with creative_strategy dict.
     """
@@ -341,10 +472,38 @@ async def generate_creative_strategy(state: AgentFilmState) -> dict[str, Any]:
     ctx = state.get("product_context", {})
     user_request = state.get("user_request", "")
 
-    # Build strategy based on product context and user request
     product_name = ctx.get("product_name", "智能商品")
+    product_description = ctx.get("product_description", "")
     selling_points = ctx.get("selling_points", [])
+    target_audience = ctx.get("target_audience", "")
 
+    # Try LLM first
+    try:
+        llm = create_llm()
+        prompt = _STRATEGY_PROMPT.format(
+            product_name=product_name,
+            product_description=product_description or "无",
+            selling_points=", ".join(selling_points) if selling_points else "无",
+            target_audience=target_audience or "通用消费者",
+            user_request=user_request or "无特殊要求",
+            mode=profile.mode,
+        )
+        response = await llm.ainvoke(prompt)
+        raw_content = response.content if hasattr(response, "content") else str(response)
+        content = raw_content if isinstance(raw_content, str) else str(raw_content)
+
+        # Parse LLM response
+        strategy = _parse_strategy_response(content, profile.mode)
+        strategy["product_name"] = product_name
+        strategy["profile_mode"] = profile.mode
+        strategy["source"] = "llm"
+        logger.info("Creative strategy generated via LLM: angle=%s", strategy.get("marketing_angle"))
+        return {"creative_strategy": strategy}
+
+    except Exception as exc:
+        logger.warning("LLM strategy generation failed, using heuristic: %s", exc)
+
+    # Fallback to heuristic
     strategy = {
         "marketing_angle": _determine_marketing_angle(user_request, selling_points),
         "tone": _determine_tone(profile.mode),
@@ -352,11 +511,53 @@ async def generate_creative_strategy(state: AgentFilmState) -> dict[str, Any]:
         "target_emotion": _determine_target_emotion(user_request),
         "product_name": product_name,
         "profile_mode": profile.mode,
+        "source": "heuristic",
+    }
+    logger.info("Creative strategy generated via heuristic: angle=%s", strategy["marketing_angle"])
+    return {"creative_strategy": strategy}
+
+
+def _parse_strategy_response(content: str, mode: str) -> dict[str, Any]:
+    """Parse LLM response into strategy dict."""
+    import json
+    import re
+
+    # Try to extract JSON from response
+    json_match = re.search(r'\{.*\}', content, re.DOTALL)
+    if json_match:
+        try:
+            data = json.loads(json_match.group())
+            return {
+                "marketing_angle": data.get("marketing_angle", _clamp_angle(data.get("marketing_angle", "general"))),
+                "tone": data.get("tone", _clamp_tone(data.get("tone", "concise" if mode == "quick" else "detailed"))),
+                "key_messages": data.get("key_messages", ["品质优良", "性价比高"])[:3],
+                "target_emotion": data.get("target_emotion", "neutral"),
+            }
+        except (json.JSONDecodeError, AttributeError):
+            pass
+
+    # Fallback: return defaults
+    return {
+        "marketing_angle": "general",
+        "tone": "concise" if mode == "quick" else "detailed",
+        "key_messages": ["品质优良", "性价比高"],
+        "target_emotion": "neutral",
     }
 
-    logger.info("Creative strategy generated: angle=%s", strategy["marketing_angle"])
 
-    return {"creative_strategy": strategy}
+def _clamp_angle(value: str) -> str:
+    valid = {"promotional", "new_launch", "brand_story", "feature_focused", "general"}
+    return value if value in valid else "general"
+
+
+def _clamp_tone(value: str) -> str:
+    valid = {"concise", "detailed", "emotional", "urgent"}
+    return value if value in valid else "balanced"
+
+
+def _clamp_emotion(value: str) -> str:
+    valid = {"fun", "warm", "premium", "urgency", "neutral"}
+    return value if value in valid else "neutral"
 
 
 def _determine_marketing_angle(user_request: str, selling_points: list[str]) -> str:
@@ -402,45 +603,87 @@ def _determine_target_emotion(user_request: str) -> str:
 async def generate_script(state: AgentFilmState) -> dict[str, Any]:
     """Generate video script.
 
-    Uses LLM to generate a structured script with:
-      - title
-      - total_duration
-      - segments (each with time, camera_desc, script_content, etc.)
-      - style
+    Uses LLM with structured output to generate a script with:
+      - title, total_duration, style, language
+      - segments (each with time, camera_desc, script_content, screen_text, core_purpose)
+
+    Falls back to heuristic if LLM fails (WP-11 round 2).
 
     Returns state update with script dict.
     """
     profile = get_profile(state.get("profile_id", "one-click-quick"))
     ctx = state.get("product_context", {})
     strategy = state.get("creative_strategy", {})
+    language = state.get("language", "zh-CN")
 
     product_name = ctx.get("product_name", "智能商品")
     marketing_angle = strategy.get("marketing_angle", "general")
     key_messages = strategy.get("key_messages", [])
-
-    # Determine duration from profile or default
     duration = _parse_duration(profile.default_duration)
+    num_segments = 3 if profile.mode == "quick" else 4
 
-    # Generate script segments
-    segments = _generate_script_segments(
-        product_name=product_name,
-        marketing_angle=marketing_angle,
-        key_messages=key_messages,
-        duration=duration,
-        mode=profile.mode,
-    )
+    # Try LLM with structured output first (WP-11 round 2)
+    try:
+        llm = create_llm()
+        structured_llm = llm.with_structured_output(ScriptOutput)
+        prompt = _SCRIPT_PROMPT.format(
+            product_name=product_name,
+            product_description=ctx.get("product_description", "") or "无",
+            selling_points=", ".join(key_messages) if key_messages else "品质优良",
+            marketing_angle=marketing_angle,
+            tone=strategy.get("tone", "concise" if profile.mode == "quick" else "detailed"),
+            target_emotion=strategy.get("target_emotion", "neutral"),
+            duration=duration,
+            mode=profile.mode,
+            language=language,
+            num_segments=num_segments,
+        )
+        result = cast("ScriptOutput", await structured_llm.ainvoke(prompt))
+        segments = [
+            {
+                "segment": s.segment,
+                "time": s.time,
+                "camera_desc": s.camera_desc,
+                "script_content": s.script_content,
+                "screen_text": s.screen_text,
+                "core_purpose": s.core_purpose,
+                "duration_seconds": s.duration_seconds,
+            }
+            for s in result.segments
+        ]
+        script = {
+            "title": result.title,
+            "total_duration": result.total_duration,
+            "style": result.style,
+            "language": result.language,
+            "segments": segments,
+            "profile_mode": profile.mode,
+        }
+        logger.info(
+            "Script generated via LLM: %d segments, duration=%ds",
+            len(segments),
+            result.total_duration,
+        )
+        return {"script": script}
+    except Exception as exc:
+        logger.warning("LLM script generation failed, using heuristic: %s", exc)
 
+    # Fallback to heuristic
     script = {
         "title": f"{product_name} - {_get_script_title(marketing_angle)}",
         "total_duration": duration,
         "style": _get_script_style(marketing_angle),
-        "segments": segments,
-        "language": state.get("language", "zh-CN"),
+        "segments": _generate_script_segments(
+            product_name=product_name,
+            marketing_angle=marketing_angle,
+            key_messages=key_messages,
+            duration=duration,
+            mode=profile.mode,
+        ),
+        "language": language,
         "profile_mode": profile.mode,
     }
-
-    logger.info("Script generated: %d segments, duration=%ds", len(segments), duration)
-
+    logger.info("Script generated via heuristic: %d segments", len(script["segments"]))
     return {"script": script}
 
 
@@ -566,20 +809,68 @@ def _generate_script_segments(
 async def generate_storyboard(state: AgentFilmState) -> dict[str, Any]:
     """Generate storyboard from script.
 
-    Converts script segments into a storyboard with:
-      - shot_number
-      - time_window
-      - camera_description
-      - visual_content
-      - voiceover
-      - on_screen_text
-      - core_purpose
+    Uses LLM with structured output to convert script segments into a storyboard.
+
+    Falls back to heuristic if LLM fails (WP-11 round 2).
 
     Returns state update with storyboard dict.
     """
     script = state.get("script", {})
     segments = script.get("segments", [])
+    language = script.get("language", state.get("language", "zh-CN"))
 
+    # Try LLM with structured output first (WP-11 round 2)
+    if segments:
+        try:
+            llm = create_llm()
+            structured_llm = llm.with_structured_output(StoryboardOutput)
+            segments_json = json.dumps(
+                [
+                    {
+                        "segment": s.get("segment", i + 1),
+                        "time": s.get("time", ""),
+                        "camera_desc": s.get("camera_desc", ""),
+                        "script_content": s.get("script_content", ""),
+                        "screen_text": s.get("screen_text", ""),
+                        "core_purpose": s.get("core_purpose", ""),
+                        "duration_seconds": s.get("duration_seconds", 0),
+                    }
+                    for i, s in enumerate(segments)
+                ],
+                ensure_ascii=False,
+            )
+            prompt = _STORYBOARD_PROMPT.format(
+                title=script.get("title", "分镜脚本"),
+                style=script.get("style", "balanced"),
+                language=language,
+                segments_json=segments_json,
+            )
+            result = cast("StoryboardOutput", await structured_llm.ainvoke(prompt))
+            storyboard = {
+                "title": result.title,
+                "total_shots": result.total_shots,
+                "style": result.style,
+                "language": result.language,
+                "shots": [
+                    {
+                        "shot_number": s.shot_number,
+                        "time_window": s.time_window,
+                        "camera_description": s.camera_description,
+                        "visual_content": s.visual_content,
+                        "voiceover": s.voiceover,
+                        "on_screen_text": s.on_screen_text,
+                        "core_purpose": s.core_purpose,
+                        "duration_seconds": s.duration_seconds,
+                    }
+                    for s in result.shots
+                ],
+            }
+            logger.info("Storyboard generated via LLM: %d shots", len(storyboard["shots"]))
+            return {"storyboard": storyboard}
+        except Exception as exc:
+            logger.warning("LLM storyboard generation failed, using heuristic: %s", exc)
+
+    # Fallback to heuristic
     storyboard = {
         "title": script.get("title", "分镜脚本"),
         "total_shots": len(segments),
@@ -597,11 +888,9 @@ async def generate_storyboard(state: AgentFilmState) -> dict[str, Any]:
             }
             for i, seg in enumerate(segments)
         ],
-        "language": script.get("language", "zh-CN"),
+        "language": language,
     }
-
-    logger.info("Storyboard generated: %d shots", len(storyboard["shots"]))
-
+    logger.info("Storyboard generated via heuristic: %d shots", len(storyboard["shots"]))
     return {"storyboard": storyboard}
 
 
@@ -659,7 +948,6 @@ async def prepare_generation(state: AgentFilmState) -> dict[str, Any]:
     profile = get_profile(state.get("profile_id", "one-click-quick"))
     ctx = state.get("product_context", {})
     script = state.get("script", {})
-    storyboard = state.get("storyboard", {})
 
     # For WP-08, we use demo materials
     # WP-09 will replace with actual material search and selection
@@ -714,14 +1002,12 @@ def build_generation_approval(state: AgentFilmState) -> dict[str, Any]:
       - auto-approve countdown (10s default)
       - Actions: approve, cancel
     """
-    profile = get_profile(state.get("profile_id", "one-click-quick"))
     render_job = state.get("render_job", {})
     ctx = state.get("product_context", {})
-    storyboard = state.get("storyboard", {})
 
     total_points = render_job.get("total_points", 0)
     duration = render_job.get("duration_seconds", 30)
-    has_digital_human = state.get("digital_human") is not None
+    # has_digital_human = state.get("digital_human") is not None  # Reserved for future cost calculation
 
     return {
         "intent": "confirm_generation_start",
@@ -742,7 +1028,7 @@ def build_generation_approval(state: AgentFilmState) -> dict[str, Any]:
         "status": "pending",
         "source": "orchestrator",
         "product_name": ctx.get("product_name", ""),
-        "shot_count": storyboard.get("total_shots", 0),
+        "shot_count": state.get("storyboard", {}).get("total_shots", 0),
     }
 
 
