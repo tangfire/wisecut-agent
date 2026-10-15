@@ -223,7 +223,7 @@ def _normalize_product_link(link: str | None) -> str | None:
     return f"https://{link}"
 
 
-def _normalize_input_files(files: list[dict]) -> list[dict]:
+def _normalize_input_files(files: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Normalize input files: ensure list of dicts, deduplicate by URL."""
     if not isinstance(files, list):
         return []
@@ -250,7 +250,7 @@ def _normalize_input_files(files: list[dict]) -> list[dict]:
 def _build_start_message_content(
     content: str,
     product_link: str | None,
-    input_files: list[dict],
+    input_files: list[dict[str, Any]],
     language: str,
 ) -> str:
     """Build the JSON start message content sent to MAA.
@@ -683,7 +683,8 @@ async def generate_script(state: AgentFilmState) -> dict[str, Any]:
         "language": language,
         "profile_mode": profile.mode,
     }
-    logger.info("Script generated via heuristic: %d segments", len(script["segments"]))
+    segments_count = len(script.get("segments", []))
+    logger.info("Script generated via heuristic: %d segments", segments_count)
     return {"script": script}
 
 
@@ -865,7 +866,8 @@ async def generate_storyboard(state: AgentFilmState) -> dict[str, Any]:
                     for s in result.shots
                 ],
             }
-            logger.info("Storyboard generated via LLM: %d shots", len(storyboard["shots"]))
+            shots_count = len(storyboard.get("shots", []))
+            logger.info("Storyboard generated via LLM: %d shots", shots_count)
             return {"storyboard": storyboard}
         except Exception as exc:
             logger.warning("LLM storyboard generation failed, using heuristic: %s", exc)
@@ -890,7 +892,8 @@ async def generate_storyboard(state: AgentFilmState) -> dict[str, Any]:
         ],
         "language": language,
     }
-    logger.info("Storyboard generated via heuristic: %d shots", len(storyboard["shots"]))
+    shots_count = len(storyboard.get("shots", []))
+    logger.info("Storyboard generated via heuristic: %d shots", shots_count)
     return {"storyboard": storyboard}
 
 
@@ -1002,8 +1005,8 @@ def build_generation_approval(state: AgentFilmState) -> dict[str, Any]:
       - auto-approve countdown (10s default)
       - Actions: approve, cancel
     """
-    render_job = state.get("render_job", {})
-    ctx = state.get("product_context", {})
+    render_job: dict[str, Any] = state.get("render_job") or {}
+    ctx = state.get("product_context", {}) or {}
 
     total_points = render_job.get("total_points", 0)
     duration = render_job.get("duration_seconds", 30)
@@ -1317,7 +1320,7 @@ async def create_final_video_artifact(
 
 async def publish_artifacts(state: AgentFilmState) -> dict[str, Any]:
     """Publish final artifacts."""
-    render_job = state.get("render_job", {})
+    render_job: dict[str, Any] = state.get("render_job") or {}
     video_url = render_job.get("video_url")
     cover_url = render_job.get("cover_url")
 

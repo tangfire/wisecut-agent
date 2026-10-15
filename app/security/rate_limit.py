@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import Any
 
 import redis.asyncio as aioredis
 
@@ -20,9 +21,9 @@ class RateLimiter:
 
     def __init__(self, redis_url: str | None = None) -> None:
         self._redis_url = redis_url or settings.redis_url
-        self._redis: aioredis.Redis | None = None
+        self._redis: aioredis.Redis[Any] | None = None
 
-    async def _get_redis(self) -> aioredis.Redis:
+    async def _get_redis(self) -> aioredis.Redis[Any]:
         if self._redis is None:
             self._redis = aioredis.from_url(
                 self._redis_url,
@@ -77,7 +78,7 @@ class RateLimiter:
 
     async def close(self) -> None:
         if self._redis:
-            await self._redis.aclose()
+            await self._redis.close()  # type: ignore[attr-defined]
             self._redis = None
 
 

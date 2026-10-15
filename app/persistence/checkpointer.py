@@ -18,7 +18,7 @@ from app.persistence.models import Checkpoint as CheckpointModel
 from app.persistence.repositories import CheckpointRepository
 
 
-class PostgreSQLCheckpointSaver(BaseCheckpointSaver):
+class PostgreSQLCheckpointSaver(BaseCheckpointSaver[Any]):
     """PostgreSQL-backed checkpoint saver for LangGraph.
 
     Stores each checkpoint as a row in the `checkpoint` table.
@@ -29,7 +29,7 @@ class PostgreSQLCheckpointSaver(BaseCheckpointSaver):
         self._session = session
         self._repo = CheckpointRepository(session)
 
-    async def aget(
+    async def aget(  # type: ignore[override]
         self,
         thread_id: str,
         checkpoint_id: str | None = None,
@@ -60,22 +60,22 @@ class PostgreSQLCheckpointSaver(BaseCheckpointSaver):
             results.append(result)
         return results
 
-    async def aput(
+    async def aput(  # type: ignore[override]
         self,
         thread_id: str,
         checkpoint: Checkpoint,
         mapper: dict[str, Any] | None = None,
     ) -> None:
         """Save a checkpoint."""
-        checkpoint_id = checkpoint.config.get("checkpoint_id") or str(uuid4())
-        parent_id = checkpoint.parent_checkpoint_id
+        checkpoint_id = checkpoint.config.get("checkpoint_id") or str(uuid4())  # type: ignore[attr-defined]
+        parent_id = checkpoint.parent_checkpoint_id  # type: ignore[attr-defined]
 
         await self._repo.save(
             thread_id=thread_id,
             checkpoint_id=checkpoint_id,
             state=checkpoint.values,
             parent_checkpoint_id=parent_id,
-            metadata=checkpoint.metadata,
+            metadata=checkpoint.metadata,  # type: ignore[attr-defined]
         )
 
     async def aput_multi(
@@ -104,7 +104,7 @@ class PostgreSQLCheckpointSaver(BaseCheckpointSaver):
         model = await self._repo.get_by_checkpoint_id(thread_id, checkpoint_id)
         return model is not None
 
-    async def alist(
+    async def alist(  # type: ignore[override]
         self,
         thread_id: str,
         before: str | None = None,
@@ -124,7 +124,7 @@ class PostgreSQLCheckpointSaver(BaseCheckpointSaver):
     @staticmethod
     def _model_to_checkpoint(model: CheckpointModel) -> Checkpoint:
         """Convert a Checkpoint model to a LangGraph Checkpoint."""
-        return Checkpoint(
+        return Checkpoint(  # type: ignore[typeddict-item]
             values=model.state_json,
             metadata=model.metadata_json or {},
             config={"checkpoint_id": model.checkpoint_id},

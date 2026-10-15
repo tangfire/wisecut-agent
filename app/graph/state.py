@@ -14,7 +14,7 @@ Design (plan.md §6):
 
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import Any, TypedDict
 
 
 class AgentFilmState(TypedDict):
@@ -29,26 +29,26 @@ class AgentFilmState(TypedDict):
     # User input
     user_request: str
     product_link: str | None
-    input_files: list[dict]
+    input_files: list[dict[str, Any]]
 
     # Pipeline data
-    product_context: dict
-    creative_strategy: dict
-    script: dict
-    storyboard: dict
+    product_context: dict[str, Any]
+    creative_strategy: dict[str, Any]
+    script: dict[str, Any]
+    storyboard: dict[str, Any]
 
     # Media data
-    materials: list[dict]
-    digital_human: dict | None
-    render_job: dict | None
-    artifacts: list[dict]
+    materials: list[dict[str, Any]]
+    digital_human: dict[str, Any] | None
+    render_job: dict[str, Any] | None
+    artifacts: list[dict[str, Any]]
 
     # HITL state
-    pending_interaction: dict | None
-    pending_approval: dict | None
+    pending_interaction: dict[str, Any] | None
+    pending_approval: dict[str, Any] | None
 
     # Error tracking
-    errors: list[dict]
+    errors: list[dict[str, Any]]
     retry_count: int
 
 
@@ -59,7 +59,7 @@ def create_initial_state(
     language: str = "zh-CN",
     user_request: str = "",
     product_link: str | None = None,
-    input_files: list[dict] | None = None,
+    input_files: list[dict[str, Any]] | None = None,
 ) -> AgentFilmState:
     """Create a fresh AgentFilmState with sensible defaults."""
     return AgentFilmState(

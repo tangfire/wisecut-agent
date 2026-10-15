@@ -12,6 +12,7 @@ The cancel flow (plan.md §10.3):
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import redis.asyncio as aioredis
 
