@@ -1009,12 +1009,12 @@ docs(agent): update deployment and troubleshooting
 #### 第三轮完成（2026-10-15）：
 
 - [x] mypy 144 → 117（减少 27 个错误，涉及 7 个文件）
-- [x] 修复 worker/run_worker.py 类型标注（loop 变量、Future 泛型、Redis close()、connection assert）
+- [x] 修复 worker/run_worker.py 类型标注（loop 变量、Future 泛型、Redis close()）
 - [x] 修复 worker/cancel.py Redis 泛型参数
 - [x] 修复 worker/lock_manager.py Redis 泛型参数和 Task 泛型
-- [x] 修复 persistence/repositories.py 状态赋值 type: ignore（5 处）
+- [x] 修复 persistence/repositories.py 状态赋值 type: ignore
 - [x] 移除 graph/builder.py 和 graph/runner.py 未使用 type: ignore
-- [x] 修复 main.py 未使用 type: ignore 和 GraphRunner 类型不匹配
+- [x] 修复 main.py GraphRunner 类型不匹配
 
 验证：
 
@@ -1025,15 +1025,39 @@ docs(agent): update deployment and troubleshooting
 结果：退出码 0
 关键输出：331 passed in 7.64s（无回归）
 命令：python -m mypy app/ --ignore-missing-imports
-结果：Found 117 errors in 27 files（从 144 降至 117；修改的 7 个文件无新增错误）
+结果：Found 117 errors in 27 files（从 144 降至 117）
 关联 commit：e35f8af
 ```
 
-完成 commit：`e35f8af`
+#### 第四轮完成（2026-10-15）：
+
+- [x] mypy 117 → 81（减少 36 个错误，涉及 5 个文件，错误文件 27 → 24）
+- [x] 修复 graph/state.py AgentFilmState 类型（dict → dict[str, Any]，消除 13 个错误）
+- [x] 修复 domain/agent_film.py 类型（dict 泛型、len() 类型、None-safe 访问，消除 8 个错误）
+- [x] 修复 persistence/checkpointer.py LangGraph 接口不匹配（type: ignore[override]，消除 10 个错误）
+- [x] 修复 worker/cancel.py 缺失 Any 导入
+- [x] 修复 worker/run_worker.py loop 作用域和 type: ignore
+- [x] 修复 security/rate_limit.py Redis 泛型和 close()
+- [x] 修复 application/services.py dict 类型和函数注解
+
+验证：
+
+```text
+工作包：WP-11（第四轮）
+日期：2026-10-15
+命令：SKIP_SETTINGS_VALIDATION=1 python -m pytest tests/ -q
+结果：退出码 0
+关键输出：331 passed in 11.45s（无回归）
+命令：python -m mypy app/ --ignore-missing-imports
+结果：Found 81 errors in 24 files（从 117 降至 81）
+关联 commit：dce6bc0
+```
+
+完成 commit：`dce6bc0`
 
 本轮未完成（留在后续轮次）：
 
-- [ ] mypy 117 → 目标 < 50（剩余错误在 checkpointer、tools/executor、tools/policy、tracing、engine、registry、nodes/__init__.py、domain/agent_film 等，需进一步结构改造）
+- [ ] mypy 81 → 目标 < 50（剩余错误在 tools/executor/policy/registry、observability/tracing、providers/demo、persistence/engine、llm/factory 等预存在模块）
 - [ ] OutboxPublisher 尚未验证真实 RabbitMQ 发布
 - [ ] Real Provider 尚未实现
 
@@ -1251,6 +1275,7 @@ docs(agent): update deployment and troubleshooting
 | 2026-10-14 | WP-11 R1 | `525db05` | 运行时闭环：GraphRunner ainvoke、interrupt/resume、Worker handler、事件落库、身份修正、端口修正 | `pytest: 331 passed`；`mypy: 89 errors` |
 | 2026-10-15 | WP-11 R2 | `5123600` | 质量纠偏：mypy 162→144、LLM 接入 script/storyboard、权限校验补全、ruff clean | `pytest: 331 passed`；`ruff: clean`；`mypy: 144 errors` |
 | 2026-10-15 | WP-11 R3 | `e35f8af` | 类型纠偏：mypy 144→117、worker/Redis/ repositories 类型修复、无类型注解清理 | `pytest: 331 passed`；`mypy: 117 errors` |
+| 2026-10-15 | WP-11 R4 | `dce6bc0` | 类型纠偏：mypy 117→81、checkpointer 接口修复、state 泛型、agent_film 类型 | `pytest: 331 passed`；`mypy: 81 errors` |
 
 ## 5. 验证记录
 
