@@ -68,7 +68,7 @@ docs(agent): update deployment and troubleshooting
 | WP-09 媒体和 Artifact 能力 | 8.2、8.3、9.5 | [~] | `765847f` | Demo 流程存在；Real Provider 未实现，没有真实 MP4 |
 | WP-10 安全和可观测性 | 11、12 | [~] | `1cb257f` | 模块存在；鉴权未接入路由，固定身份 fallback 未移除 |
 | WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [x] | `2d7e64e` | interrupt/resume + SSE after_seq + DLQ 策略全部 Docker 验证通过 |
-| WP-12 独立产品领域与 Product API | 5.5、9.6 | [~] | - | 用户、workspace、project、asset、认证、上传 |
+| WP-12 独立产品领域与 Product API | 5.5、9.6 | [~] | `0bd484f` | 模型+认证+路由+服务骨架；测试 356 passed， ruff clean |
 | WP-13 独立 Vue Agent Film Web | 13.4 | [ ] | - | 项目、工作台、交互卡、视频预览下载 |
 | WP-14 真实 LLM 与视频生成 API | 7.4、8.3 | [ ] | - | OpenAI-compatible、远程视频任务、Webhook/轮询、产物归档 |
 | WP-15 WiseCut MAA 兼容联调 | 2.1、19.4 | [ ] | - | Go API/Consumer/前端兼容链路 |
