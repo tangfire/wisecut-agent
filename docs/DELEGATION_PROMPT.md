@@ -39,21 +39,26 @@
 - 当前 API 与 Worker 已拆成两个容器，且两个容器 healthy；API 的 `ENABLE_WORKER=false`，Worker 注入真实 GraphRunner。
 - `POST /conversations` 已真实返回 `201 Created`，`POST /messages` 已返回 `200` 并发布 Run command。
 - 主链已验证：API -> RabbitMQ -> Worker -> GraphRunner -> LangGraph -> completed，并确认 8 个 checkpoint 持久化。
-- 当前剩余只有真实 HTTP interrupt/resume 和 SSE 断线续传；Real Provider 留到 WP-14。
-- 当前工作区有 4 个未提交文件：`app/application/sync_services.py`、`app/graph/builder.py`、`app/graph/runner.py`、`app/persistence/checkpointer.py`。这些是 interrupt/resume 收口改动，严禁 reset、checkout、clean 或覆盖；先审阅 diff、测试并提交。
-- 当前验证基线：`pytest tests -q` 为 334 passed，`python -m ruff check app tests` 通过，`python -m mypy app --ignore-missing-imports` 为 62 errors（历史遗留）。
+- 当前工作区有 4 个未提交文件：`app/application/sync_services.py`、`app/graph/builder.py`、`app/graph/runner.py`、`app/persistence/checkpointer.py`。这些是 interrupt/resume 收口改动，严禁 reset、checkout、clean 或覆盖；先审阅 diff。
+- Deep profile 已真实产生 `interaction.requested`，HTTP 回答已产生 `interaction.resolved` 并返回原始 run_id。
+- 已修复 `_resume_graph(lock=...)` 和 Checkpoint `pending_sends` 问题。
+- 当前 resume 失败于 Checkpoint UPDATE：`asyncpg InterfaceError: another operation is in progress`。根因边界是 Checkpointer 和 GraphRunner 业务写入共享同一个 AsyncSession。
+- 当前验证基线：`pytest tests -q` 为 334 passed，但有 Worker/Outbox pending task 清理警告；ruff 有 1 个 runner import-order 错误；mypy 当前未提交树为 64 errors；6 个容器 healthy；DLQ 有 3 条测试消息。
+- 当前剩余是 Checkpointer session 隔离、真实 HTTP resume、SSE 断线续传和 DLQ 排查；Real Provider 留到 WP-14。
 - Real Provider 留到 WP-14，不要在 WP-11 中实现。
 - 不要直接把全项目迁移到同步 psycopg2；先修 Worker healthcheck 和 GraphRunner 注入，再验证真实消息链。
 
 本次收口任务必须按以下顺序：
-1. 审阅上述 4 个未提交文件，运行 pytest、ruff、mypy，确认没有丢失已有逻辑。
-2. 使用 `one-click-cocreate`/Deep profile 创建真实会话，触发商品或脚本 review interaction。
-3. 通过真实 HTTP 提交 interaction response，确认同一 checkpoint 恢复并推进到下一节点。
-4. 断开 SSE 客户端后使用 `after_seq` 重连，确认事件不重复、不丢失。
-5. 检查 RabbitMQ DLQ 中的遗留消息并记录原因，不要无证据清空。
-6. 记录容器状态、事件、checkpoint、Run terminal 状态和 SSE 续传证据。
-7. 运行 pytest、ruff、mypy 和 Compose/容器验证，更新 execution.md 并提交聚焦 commit。
-8. 两项证据都完成后才把 WP-11 标记为 `[x]`，然后进入 WP-12。
+1. 审阅上述 4 个未提交文件，保留已经修好的 datetime、run_id、lock 和 pending_sends 逻辑。
+2. 将 PostgreSQLCheckpointSaver 改为持有 async session factory；每个 aget/aput/aput_writes/alist 使用自己的短 session/事务，不和 GraphRunner 业务 session 共用。
+3. 使用 PostgreSQL upsert 或等价并发安全写入 Checkpoint，避免同一 session 上 insert/rollback/update。
+4. 修复 Worker stop 时 OutboxPublisher 和 health task 的 cancel + await，消除 `Task was destroyed but it is pending`。
+5. 修复 runner.py 的 Ruff import-order 错误，运行 pytest、ruff、mypy。
+6. 使用 Deep profile 重新执行真实 HTTP interaction response，确认同一 checkpoint 恢复并进入下一 interaction 或 terminal state。
+7. 断开 SSE 后使用 `after_seq` 重连，确认事件不重复、不丢失。
+8. 检查 DLQ 3 条测试消息并记录原因，不要无证据清空。
+9. 更新 execution.md、记录数据库/Event/Checkpoint/Run 证据并提交聚焦 commit。
+10. interrupt/resume 和 SSE 两项都有真实证据后，才把 WP-11 标记为 `[x]`，然后进入 WP-12。
 ```
 
 ## 智能体每轮结束时必须返回

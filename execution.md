@@ -67,7 +67,7 @@ docs(agent): update deployment and troubleshooting
 | WP-08 Agent Film 业务图 | 7.1、7.2、7.3 | [~] | `4f0467f` | 领域函数存在；当前为启发式且没有真实 LLM/Graph 执行 |
 | WP-09 媒体和 Artifact 能力 | 8.2、8.3、9.5 | [~] | `765847f` | Demo 流程存在；Real Provider 未实现，没有真实 MP4 |
 | WP-10 安全和可观测性 | 11、12 | [~] | `1cb257f` | 模块存在；鉴权未接入路由，固定身份 fallback 未移除 |
-| WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [~] | `aef4ede` | 主链已通过真实容器验证；剩余真实 HTTP interrupt/resume、SSE 断线续传和 1 条 DLQ 排查 |
+| WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [~] | `aef4ede` | Deep interrupt/answer 已到 resume；Checkpoint 并发共享 AsyncSession 失败，另剩 SSE 续传和 3 条 DLQ 排查 |
 | WP-12 独立产品领域与 Product API | 5.5、9.6 | [ ] | - | 用户、workspace、project、asset、认证、上传 |
 | WP-13 独立 Vue Agent Film Web | 13.4 | [ ] | - | 项目、工作台、交互卡、视频预览下载 |
 | WP-14 真实 LLM 与视频生成 API | 7.4、8.3 | [ ] | - | OpenAI-compatible、远程视频任务、Webhook/轮询、产物归档 |
@@ -78,7 +78,7 @@ docs(agent): update deployment and troubleshooting
 
 当前工作包：`WP-11`
 
-当前下一步：完成 WP-11 剩余的真实 HTTP interrupt/resume、SSE 断线续传和 DLQ 排查，在此之前不要开始独立前端。
+当前下一步：隔离 Checkpointer 的数据库 session，完成 Deep resume；随后验证 SSE 断线续传和 DLQ，在此之前不要开始独立前端。
 
 > 重基线说明：WP-02 至 WP-10 明细中的历史 `[x]` 保留为“当时已实现/已测试的局部任务”记录；总体表和章节状态为 `[~]` 时，表示该工作包尚未满足新的最终出口条件，不得据此宣称整体完成。
 
@@ -1606,6 +1606,52 @@ WP-11 剩余任务（完成前不进入 WP-12）：
 - [x] OutboxPublisher 独立健康检查和指标（health_check()/get_stats() 方法 + Worker health stats writer）
 - [~] 真实 HTTP 验证 interrupt/resume 完整路径（基础链路已验证，checkpoint commit 修复完成；需要使用 Deep profile 触发 review 节点）
 - [ ] SSE 断线续传真实测试
+
+### 5.8 WP-11 Deep resume 崩溃恢复点
+
+```text
+日期：2026-10-16
+当前工作区：4 个未提交文件
+- app/application/sync_services.py
+- app/graph/builder.py
+- app/graph/runner.py
+- app/persistence/checkpointer.py
+
+已通过的真实 HTTP 路径：
+- POST /conversations -> 201，profile=one-click-cocreate
+- POST /messages -> 200
+- run.started seq=1
+- interaction.requested seq=2
+- Run -> WAITING_INTERACTION / awaiting_user_input
+- POST interaction_response -> 200，返回原始 run_id
+- interaction.resolved seq=3
+
+已修复的中间问题：
+- sync_services.py 缺失 datetime 导入
+- _resume_graph() 多余 lock 参数
+- Checkpoint 缺失 pending_sends
+
+当前真实阻塞：
+- 最新 Run `run-764d6a73822e` 在 resume 时 FAILED。
+- PostgreSQL/asyncpg 错误：`cannot perform operation: another operation is in progress`。
+- 错误发生在 Checkpoint UPDATE；LangGraph Checkpointer 和 GraphRunner 业务写入共享同一个 AsyncSession。
+- Checkpointer 当前持有 GraphRunner 传入的 session；LangGraph 可能并发调用 aput/aput_writes，AsyncSession 不支持并发共享。
+- RabbitMQ DLQ 当前有 3 条测试消息。
+
+当前验证：
+- pytest：334 passed，但有 `Task was destroyed but it is pending` 的 Worker/Outbox 后台任务清理警告。
+- ruff：1 个 import-order 错误（app/graph/runner.py）。
+- mypy：64 errors in 18 files（当前未提交树）。
+- 6 个容器 healthy。
+
+建议修复边界：
+1. PostgreSQLCheckpointSaver 改为持有 async session factory，而不是持有 GraphRunner 的共享 AsyncSession。
+2. aget/aput/aput_writes/alist 各自使用短生命周期 session 和独立事务。
+3. Checkpoint 写入使用 PostgreSQL upsert 或等价并发安全写入，避免 insert/rollback/update 共用同一 session。
+4. GraphRunner 的 Run/Event/Interaction 业务 session 与 Checkpointer session 分离。
+5. 修复 Worker stop 时 OutboxPublisher/health task 的 cancel + await，消除 pending task 警告。
+6. 修复后重新跑 Deep HTTP resume；成功后再做 SSE after_seq 续传。
+```
 
 通用：
 - [ ] WP-11 未完成前，不开始独立 Vue 前端，避免前端建立在不可执行的后端上。
