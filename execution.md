@@ -67,7 +67,7 @@ docs(agent): update deployment and troubleshooting
 | WP-08 Agent Film 业务图 | 7.1、7.2、7.3 | [~] | `4f0467f` | 领域函数存在；当前为启发式且没有真实 LLM/Graph 执行 |
 | WP-09 媒体和 Artifact 能力 | 8.2、8.3、9.5 | [~] | `765847f` | Demo 流程存在；Real Provider 未实现，没有真实 MP4 |
 | WP-10 安全和可观测性 | 11、12 | [~] | `1cb257f` | 模块存在；鉴权未接入路由，固定身份 fallback 未移除 |
-| WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [~] | `c7fc2d9` + `(pending)` | API/Worker 已拆分；GraphRunner 注入、CheckpointSaver 合规、完整链路已验证；mypy 99→62；OutboxPublisher 独立健康检查新增；checkpoint commit 修复 |
+| WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [~] | `aef4ede` | 主链已通过真实容器验证；剩余真实 HTTP interrupt/resume、SSE 断线续传和 1 条 DLQ 排查 |
 | WP-12 独立产品领域与 Product API | 5.5、9.6 | [ ] | - | 用户、workspace、project、asset、认证、上传 |
 | WP-13 独立 Vue Agent Film Web | 13.4 | [ ] | - | 项目、工作台、交互卡、视频预览下载 |
 | WP-14 真实 LLM 与视频生成 API | 7.4、8.3 | [ ] | - | OpenAI-compatible、远程视频任务、Webhook/轮询、产物归档 |
@@ -78,7 +78,7 @@ docs(agent): update deployment and troubleshooting
 
 当前工作包：`WP-11`
 
-当前下一步：执行 `WP-11 运行时闭环与质量纠偏`，在此之前不要开始独立前端。
+当前下一步：完成 WP-11 剩余的真实 HTTP interrupt/resume、SSE 断线续传和 DLQ 排查，在此之前不要开始独立前端。
 
 > 重基线说明：WP-02 至 WP-10 明细中的历史 `[x]` 保留为“当时已实现/已测试的局部任务”记录；总体表和章节状态为 `[~]` 时，表示该工作包尚未满足新的最终出口条件，不得据此宣称整体完成。
 
@@ -1379,7 +1379,7 @@ API 验证：
 | 2026-10-15 | WP-11 R6 | `1eeb5ea` | Docker 运行时稳定性：pool_pre_ping 禁用、uvicorn loop 修复、端口隔离、uvloop 移除 | `pytest: 334 passed`；`ruff: clean` |
 | 2026-10-15 | WP-11 R6 | `6a997fd` | readiness 修复：pika 替换 aio_pika、ensure_pool_initialized、asyncpg 0.32.0 | `pytest: 334 passed`；`/ready: ready`；已知 asyncpg loop 冲突 |
 | 2026-10-15 | WP-11 R7 | `c7fc2d9` | Worker healthcheck、GraphRunner 注入、CheckpointSaver 合规、完整链路验证 | `pytest: 334 passed`；`ruff: clean`；Worker healthy；Run completed |
-| 2026-10-16 | WP-11 R7+ | `(pending)` | mypy 41 个 WP-11 引入错误修复、OutboxPublisher 健康检查、checkpoint commit 修复、content dict 序列化 | `pytest: 334 passed`；`ruff: clean`；`mypy: 62 errors`（全历史遗留）；8 checkpoints/Run |
+| 2026-10-16 | WP-11 R7+ | `aef4ede` | mypy 41 个 WP-11 引入错误修复、OutboxPublisher 健康检查、checkpoint commit 修复、content dict 序列化 | `pytest: 334 passed`；`ruff: clean`；`mypy: 62 errors`（全历史遗留）；8 checkpoints/Run |
 
 ## 5. 验证记录
 
@@ -1604,7 +1604,7 @@ WP-11 R7 已完成：
 WP-11 剩余任务（完成前不进入 WP-12）：
 - [x] mypy 99 errors → 62（WP-11 引入的 41 个错误已全部修复；剩余 62 个均为历史遗留错误）
 - [x] OutboxPublisher 独立健康检查和指标（health_check()/get_stats() 方法 + Worker health stats writer）
-- [~] 真实 HTTP 验证 interrupt/resume 完整路径（基础链路已验证，checkpoint commit 修复完成；interrupt/resume 需要配置开启 review 节点的 profile）
+- [~] 真实 HTTP 验证 interrupt/resume 完整路径（基础链路已验证，checkpoint commit 修复完成；需要使用 Deep profile 触发 review 节点）
 - [ ] SSE 断线续传真实测试
 
 通用：
@@ -1614,4 +1614,4 @@ WP-11 剩余任务（完成前不进入 WP-12）：
 - [ ] 重基线文档提交后，将 `docs/DELEGATION_PROMPT.md` 交给下一位智能体。
 - [ ] 每个工作包完成后立即更新本文件、记录验证输出并提交。
 
-下一次继续任务时，优先处理当前工作包，不跳过出口条件，不把未验证的 `[~]` 改成 `[x]`。
+下一次继续任务时，优先完成 Deep profile 的真实 HTTP interrupt/resume 和 SSE 断线续传；两项都有证据后再把 WP-11 标记为 `[x]`，然后进入 WP-12。
