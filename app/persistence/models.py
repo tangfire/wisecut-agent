@@ -330,3 +330,161 @@ class AuditLog(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+# ---------------------------------------------------------------------------
+# WP-12: Independent Product Domain Models
+# ---------------------------------------------------------------------------
+
+class UserAccountStatus(StrEnum):
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+    DEACTIVATED = "deactivated"
+
+
+class UserAccount(Base):
+    __tablename__ = "user_account"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
+    email: Mapped[str] = mapped_column(String(320), nullable=False, unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    status: Mapped[UserAccountStatus] = mapped_column(
+        SAEnum(UserAccountStatus), nullable=False, default=UserAccountStatus.ACTIVE
+    )
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+    workspaces: Mapped[list[Workspace]] = relationship(back_populates="owner", cascade="all, delete-orphan")
+    provider_settings: Mapped[list[ProviderSetting]] = relationship(back_populates="user", cascade="all, delete-orphan")
+
+
+class Workspace(Base):
+    __tablename__ = "workspace"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    owner_user_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("user_account.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+    owner: Mapped[UserAccount] = relationship(back_populates="workspaces")
+    projects: Mapped[list[Project]] = relationship(back_populates="workspace", cascade="all, delete-orphan")
+
+
+class ProjectStatus(StrEnum):
+    ACTIVE = "active"
+    ARCHIVED = "archived"
+    DELETED = "deleted"
+
+
+class Project(Base):
+    __tablename__ = "project"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("workspace.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[ProjectStatus] = mapped_column(
+        SAEnum(ProjectStatus), nullable=False, default=ProjectStatus.ACTIVE
+    )
+    created_by: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+    workspace: Mapped[Workspace] = relationship(back_populates="projects")
+    assets: Mapped[list[Asset]] = relationship(back_populates="project", cascade="all, delete-orphan")
+
+
+class AssetType(StrEnum):
+    IMAGE = "image"
+    VIDEO = "video"
+    AUDIO = "audio"
+    DOCUMENT = "document"
+    OTHER = "other"
+
+
+class Asset(Base):
+    __tablename__ = "asset"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
+    project_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("project.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    asset_type: Mapped[AssetType] = mapped_column(SAEnum(AssetType), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    s3_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    s3_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    project: Mapped[Project] = relationship(back_populates="assets")
+
+
+class ProviderType(StrEnum):
+    LLM = "llm"
+    VIDEO = "video"
+    MATERIAL = "material"
+    DIGITAL_HUMAN = "digital_human"
+    TTS = "tts"
+    RESEARCH = "research"
+
+
+class ProviderSetting(Base):
+    __tablename__ = "provider_setting"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("user_account.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    provider_type: Mapped[ProviderType] = mapped_column(SAEnum(ProviderType), nullable=False)
+    config_json: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+    user: Mapped[UserAccount] = relationship(back_populates="provider_settings")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "provider_type", name="uq_provider_setting_user_type"),
+    )
+
+
+class RefreshToken(Base):
+    __tablename__ = "refresh_token"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("user_account.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    revoked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

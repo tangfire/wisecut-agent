@@ -326,6 +326,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(approvals.router, prefix="", tags=["Approval"])
     app.include_router(artifacts.router, prefix="", tags=["Artifact"])
 
+    # ---- Product API routers (WP-12) ----
+    from app.api.product import auth as product_auth
+    from app.api.product import projects as product_projects
+    from app.api.product import assets as product_assets
+    from app.api.product import runs as product_runs
+    from app.api.product import artifacts as product_artifacts
+    from app.api.product import providers as product_providers
+
+    app.include_router(product_auth.router, prefix="/api/v1", tags=["Product Auth"])
+    app.include_router(product_projects.router, prefix="/api/v1", tags=["Product Projects"])
+    app.include_router(product_assets.router, prefix="/api/v1", tags=["Product Assets"])
+    app.include_router(product_runs.router, prefix="/api/v1", tags=["Product Runs"])
+    app.include_router(product_artifacts.router, prefix="/api/v1", tags=["Product Artifacts"])
+    app.include_router(product_providers.router, prefix="/api/v1", tags=["Product Providers"])
+
     logger.info(
         "MAA API routes registered",
         extra={

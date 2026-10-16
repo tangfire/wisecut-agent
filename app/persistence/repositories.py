@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.persistence.models import (
     Approval,
     Artifact,
+    Asset,
     AuditLog,
     Checkpoint,
     Conversation,
@@ -24,8 +25,15 @@ from app.persistence.models import (
     Interaction,
     Message,
     OutboxEvent,
+    Project,
+    ProjectStatus,
+    ProviderSetting,
+    RefreshToken,
     Run,
     ToolExecution,
+    UserAccount,
+    UserAccountStatus,
+    Workspace,
 )
 
 # ---------------------------------------------------------------------------
@@ -684,3 +692,351 @@ class AuditLogRepository(BaseRepository):
             .limit(limit)
         )
         return result.scalars().all()
+
+
+# ---------------------------------------------------------------------------
+# WP-12: Independent Product Domain Repositories
+# ---------------------------------------------------------------------------
+
+
+class UserAccountRepository(BaseRepository):
+    """Repository for UserAccount aggregate."""
+
+    async def create(
+        self,
+        email: str,
+        password_hash: str,
+        display_name: str,
+    ) -> UserAccount:
+        user = UserAccount(
+            id=str(uuid4()),
+            email=email.lower().strip(),
+            password_hash=password_hash,
+            display_name=display_name,
+            status=UserAccountStatus.ACTIVE,
+        )
+        self._session.add(user)
+        await self._session.flush()
+        return user
+
+    async def get_by_id(self, user_id: str) -> UserAccount | None:
+        result = await self._session.execute(
+            select(UserAccount).where(UserAccount.id == user_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_email(self, email: str) -> UserAccount | None:
+        result = await self._session.execute(
+            select(UserAccount).where(UserAccount.email == email.lower().strip())
+        )
+        return result.scalar_one_or_none()
+
+    async def update_last_login(self, user_id: str) -> None:
+        result = await self._session.execute(
+            select(UserAccount).where(UserAccount.id == user_id)
+        )
+        user = result.scalar_one_or_none()
+        if user:
+            user.last_login_at = datetime.now(UTC)
+            await self._session.flush()
+
+
+class WorkspaceRepository(BaseRepository):
+    """Repository for Workspace aggregate."""
+
+    async def create(self, name: str, owner_user_id: str) -> Workspace:
+        ws = Workspace(
+            id=str(uuid4()),
+            name=name,
+            owner_user_id=owner_user_id,
+        )
+        self._session.add(ws)
+        await self._session.flush()
+        return ws
+
+    async def get_by_id(self, workspace_id: str) -> Workspace | None:
+        result = await self._session.execute(
+            select(Workspace).where(Workspace.id == workspace_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def list_by_owner(self, owner_user_id: str) -> Sequence[Workspace]:
+        result = await self._session.execute(
+            select(Workspace)
+            .where(Workspace.owner_user_id == owner_user_id)
+            .order_by(Workspace.created_at.desc())
+        )
+        return result.scalars().all()
+
+    async def verify_owner(self, workspace_id: str, user_id: str) -> bool:
+        result = await self._session.execute(
+            select(Workspace).where(
+                Workspace.id == workspace_id,
+                Workspace.owner_user_id == user_id,
+            )
+        )
+        return result.scalar_one_or_none() is not None
+
+
+class ProjectRepository(BaseRepository):
+    """Repository for Project aggregate."""
+
+    async def create(
+        self,
+        workspace_id: str,
+        name: str,
+        description: str | None,
+        created_by: str,
+    ) -> Project:
+        project = Project(
+            id=str(uuid4()),
+            workspace_id=workspace_id,
+            name=name,
+            description=description,
+            created_by=created_by,
+        )
+        self._session.add(project)
+        await self._session.flush()
+        return project
+
+    async def get_by_id(self, project_id: str) -> Project | None:
+        result = await self._session.execute(
+            select(Project).where(Project.id == project_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def list_by_workspace(
+        self,
+        workspace_id: str,
+        status_filter: str | None = None,
+        offset: int = 0,
+        limit: int = 20,
+    ) -> tuple[Sequence[Project], int]:
+        query = select(Project).where(Project.workspace_id == workspace_id)
+        if status_filter:
+            query = query.where(Project.status == status_filter)
+
+        count_query = select(func.count()).select_from(query.subquery())
+        total_result = await self._session.execute(count_query)
+        total = total_result.scalar_one()
+
+        rows = await self._session.execute(
+            query.order_by(Project.updated_at.desc()).offset(offset).limit(limit)
+        )
+        return rows.scalars().all(), total
+
+    async def update(
+        self,
+        project_id: str,
+        name: str | None = None,
+        description: str | None = None,
+        status: str | None = None,
+    ) -> Project | None:
+        result = await self._session.execute(
+            select(Project).where(Project.id == project_id)
+        )
+        project = result.scalar_one_or_none()
+        if project is None:
+            return None
+        if name is not None:
+            project.name = name
+        if description is not None:
+            project.description = description
+        if status is not None:
+            project.status = status
+        await self._session.flush()
+        return project
+
+    async def delete(self, project_id: str) -> bool:
+        result = await self._session.execute(
+            select(Project).where(Project.id == project_id)
+        )
+        project = result.scalar_one_or_none()
+        if project is None:
+            return False
+        project.status = ProjectStatus.DELETED
+        await self._session.flush()
+        return True
+
+    async def verify_workspace(self, project_id: str, workspace_id: str) -> bool:
+        result = await self._session.execute(
+            select(Project).where(
+                Project.id == project_id,
+                Project.workspace_id == workspace_id,
+            )
+        )
+        return result.scalar_one_or_none() is not None
+
+
+class AssetRepository(BaseRepository):
+    """Repository for Asset aggregate."""
+
+    async def create(
+        self,
+        project_id: str,
+        name: str,
+        asset_type: str,
+        size_bytes: int,
+        s3_key: str | None,
+        s3_url: str | None,
+        content_type: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> Asset:
+        asset = Asset(
+            id=str(uuid4()),
+            project_id=project_id,
+            name=name,
+            asset_type=asset_type,
+            size_bytes=size_bytes,
+            s3_key=s3_key,
+            s3_url=s3_url,
+            content_type=content_type,
+            metadata_json=metadata or {},
+        )
+        self._session.add(asset)
+        await self._session.flush()
+        return asset
+
+    async def get_by_id(self, asset_id: str) -> Asset | None:
+        result = await self._session.execute(
+            select(Asset).where(Asset.id == asset_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def list_by_project(
+        self,
+        project_id: str,
+        asset_type: str | None = None,
+        offset: int = 0,
+        limit: int = 50,
+    ) -> tuple[Sequence[Asset], int]:
+        query = select(Asset).where(Asset.project_id == project_id)
+        if asset_type:
+            query = query.where(Asset.asset_type == asset_type)
+
+        count_query = select(func.count()).select_from(query.subquery())
+        total_result = await self._session.execute(count_query)
+        total = total_result.scalar_one()
+
+        rows = await self._session.execute(
+            query.order_by(Asset.created_at.desc()).offset(offset).limit(limit)
+        )
+        return rows.scalars().all(), total
+
+    async def delete(self, asset_id: str) -> bool:
+        result = await self._session.execute(
+            select(Asset).where(Asset.id == asset_id)
+        )
+        asset = result.scalar_one_or_none()
+        if asset is None:
+            return False
+        await self._session.delete(asset)
+        await self._session.flush()
+        return True
+
+    async def verify_project(self, asset_id: str, project_id: str) -> bool:
+        result = await self._session.execute(
+            select(Asset).where(
+                Asset.id == asset_id,
+                Asset.project_id == project_id,
+            )
+        )
+        return result.scalar_one_or_none() is not None
+
+
+class ProviderSettingRepository(BaseRepository):
+    """Repository for ProviderSetting aggregate."""
+
+    async def set_config(
+        self,
+        user_id: str,
+        provider_type: str,
+        config: dict[str, Any],
+        is_active: bool = True,
+    ) -> ProviderSetting:
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        stmt = (
+            pg_insert(ProviderSetting)
+            .values(
+                user_id=user_id,
+                provider_type=provider_type,
+                config_json=config,
+                is_active=is_active,
+            )
+            .on_conflict_do_update(
+                constraint="uq_provider_setting_user_type",
+                set_={
+                    "config_json": config,
+                    "is_active": is_active,
+                    "updated_at": self._now(),
+                },
+            )
+            .returning(ProviderSetting)
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one()
+
+    async def get_by_user_and_type(
+        self, user_id: str, provider_type: str
+    ) -> ProviderSetting | None:
+        result = await self._session.execute(
+            select(ProviderSetting).where(
+                ProviderSetting.user_id == user_id,
+                ProviderSetting.provider_type == provider_type,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def list_by_user(self, user_id: str) -> Sequence[ProviderSetting]:
+        result = await self._session.execute(
+            select(ProviderSetting)
+            .where(ProviderSetting.user_id == user_id)
+            .order_by(ProviderSetting.provider_type)
+        )
+        return result.scalars().all()
+
+
+class RefreshTokenRepository(BaseRepository):
+    """Repository for RefreshToken aggregate."""
+
+    async def create(
+        self,
+        user_id: str,
+        token_hash: str,
+        expires_at: datetime,
+    ) -> RefreshToken:
+        rt = RefreshToken(
+            id=str(uuid4()),
+            user_id=user_id,
+            token_hash=token_hash,
+            expires_at=expires_at,
+        )
+        self._session.add(rt)
+        await self._session.flush()
+        return rt
+
+    async def get_by_hash(self, token_hash: str) -> RefreshToken | None:
+        result = await self._session.execute(
+            select(RefreshToken).where(RefreshToken.token_hash == token_hash)
+        )
+        return result.scalar_one_or_none()
+
+    async def revoke(self, token_hash: str) -> bool:
+        rt = await self.get_by_hash(token_hash)
+        if rt is None:
+            return False
+        rt.revoked = True
+        await self._session.flush()
+        return True
+
+    async def revoke_all_for_user(self, user_id: str) -> None:
+        result = await self._session.execute(
+            select(RefreshToken).where(
+                RefreshToken.user_id == user_id,
+                RefreshToken.revoked.is_(False),
+            )
+        )
+        for rt in result.scalars().all():
+            rt.revoked = True
+        await self._session.flush()

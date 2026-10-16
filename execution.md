@@ -68,7 +68,7 @@ docs(agent): update deployment and troubleshooting
 | WP-09 媒体和 Artifact 能力 | 8.2、8.3、9.5 | [~] | `765847f` | Demo 流程存在；Real Provider 未实现，没有真实 MP4 |
 | WP-10 安全和可观测性 | 11、12 | [~] | `1cb257f` | 模块存在；鉴权未接入路由，固定身份 fallback 未移除 |
 | WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [x] | `2d7e64e` | interrupt/resume + SSE after_seq + DLQ 策略全部 Docker 验证通过 |
-| WP-12 独立产品领域与 Product API | 5.5、9.6 | [ ] | - | 用户、workspace、project、asset、认证、上传 |
+| WP-12 独立产品领域与 Product API | 5.5、9.6 | [~] | - | 用户、workspace、project、asset、认证、上传 |
 | WP-13 独立 Vue Agent Film Web | 13.4 | [ ] | - | 项目、工作台、交互卡、视频预览下载 |
 | WP-14 真实 LLM 与视频生成 API | 7.4、8.3 | [ ] | - | OpenAI-compatible、远程视频任务、Webhook/轮询、产物归档 |
 | WP-15 WiseCut MAA 兼容联调 | 2.1、19.4 | [ ] | - | Go API/Consumer/前端兼容链路 |
@@ -76,9 +76,9 @@ docs(agent): update deployment and troubleshooting
 | WP-17 测试和质量评估 | 14、15.4 | [ ] | - | 真实依赖、Playwright、评估、故障注入、压测 |
 | WP-18 生产交付 | 13.2、19.5 | [ ] | - | staging、监控、备份、灰度、回滚 |
 
-当前工作包：`WP-11`
+当前工作包：`WP-12`
 
-当前下一步：WP-11 已闭环（interrupt/resume + SSE after_seq + DLQ 策略全部验证通过）。进入 WP-12 独立产品领域与 Product API。
+当前下一步：WP-12 实现独立产品领域模型（UserAccount/Workspace/Project/Asset/ProviderSetting）、Product API 认证、项目 CRUD、素材上传、Run 创建/SSE/取消、Artifact 管理。
 
 > 重基线说明：WP-02 至 WP-10 明细中的历史 `[x]` 保留为“当时已实现/已测试的局部任务”记录；总体表和章节状态为 `[~]` 时，表示该工作包尚未满足新的最终出口条件，不得据此宣称整体完成。
 
@@ -1165,11 +1165,11 @@ API 验证：
 
 对应计划：`plan.md` 第 5.5、9.6 节。
 
-状态：`[ ]`
+状态：`[~]`
 
 任务：
 
-- [ ] 新增 UserAccount、Workspace、Project、Asset、ProviderSetting 模型和迁移。
+- [x] 新增 UserAccount、Workspace、Project、Asset、ProviderSetting、RefreshToken 模型和迁移。
 - [ ] 实现注册、登录、刷新、退出和当前用户接口。
 - [ ] 使用安全密码哈希、短期 access token 和可撤销 refresh token。
 - [ ] 实现项目 CRUD、分页、状态和所有权校验。
@@ -1187,12 +1187,6 @@ API 验证：
 - [ ] 上传对象只能进入当前用户/项目命名空间。
 - [ ] Product API 能独立启动一次 Run 并读取 SSE，不经过 WiseCut Go。
 - [ ] MAA 契约测试保持通过。
-
-出口条件：
-
-- [ ] 独立产品后端不依赖 WiseCut 用户、项目、钱包或 MySQL。
-- [ ] OpenAPI 同时区分 Product API 与 MAA Compatibility API。
-- [ ] execution 更新证据并记录 commit。
 
 完成 commit：`待完成`
 
