@@ -17,6 +17,7 @@ import json
 import logging
 from collections.abc import Generator
 from contextlib import contextmanager
+from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -253,9 +254,35 @@ class APIMessageService:
         client_action_id: str,
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Post interaction response: publish to RabbitMQ."""
+        """Post interaction response: resolve interaction and publish to RabbitMQ."""
         from app.infra.messaging import publish_run_command
         from app.settings import settings
+
+        # Resolve the interaction and find the original run_id
+        with _sync_session() as session:
+            from app.persistence.models import Interaction
+            interaction = session.get(Interaction, interaction_id)
+            if interaction is None:
+                raise ValueError(f"Interaction not found: {interaction_id}")
+            original_run_id = interaction.run_id
+            interaction.status = "resolved"
+            interaction.answer_json = {"action": action, "content": content}
+            interaction.resolved_at = datetime.now(UTC)
+
+            # Create message record
+            message_id = f"msg-{uuid4().hex[:12]}"
+            from app.persistence.models import Message
+            msg = Message(
+                id=message_id,
+                conversation_id=conversation_id,
+                run_id=original_run_id,
+                role="user",
+                type="interaction_response",
+                content=content if isinstance(content, str) else json.dumps(content, ensure_ascii=False),
+                metadata_json=metadata or {},
+            )
+            session.add(msg)
+            session.commit()
 
         if isinstance(content, str):
             try:
@@ -267,7 +294,7 @@ class APIMessageService:
 
         request_id = f"interaction:{interaction_id}:{client_action_id}"
         payload = {
-            "run_id": run_id,
+            "run_id": original_run_id,
             "conversation_id": conversation_id,
             "command_type": "interaction_response",
             "payload": {
@@ -291,11 +318,24 @@ class APIMessageService:
             ch = conn.channel()
             publish_run_command(
                 ch,
-                run_id=run_id,
+                run_id=original_run_id,
                 conversation_id=conversation_id,
                 command_type="interaction_response",
                 payload=payload,
             )
+
+        logger.info(
+            "Interaction response published",
+            extra={"interaction_id": interaction_id, "run_id": original_run_id, "action": action},
+        )
+
+        return {
+            "conversation_id": conversation_id,
+            "run_id": original_run_id,
+            "interaction_id": interaction_id,
+            "accepted_as_inbox": True,
+            "events_url": f"/runs/{original_run_id}/events",
+        }
 
         return {
             "conversation_id": conversation_id,

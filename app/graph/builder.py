@@ -201,8 +201,8 @@ class AgentFilmGraphBuilder:
             },
         )
 
-        # Interrupt: product context review
-        g.add_edge("request_product_context_review", END)
+        # Interrupt: product context review -> continue to creative strategy
+        g.add_edge("request_product_context_review", "generate_creative_strategy")
 
         # Script generation flow
         g.add_edge("generate_creative_strategy", "generate_script")
@@ -215,14 +215,14 @@ class AgentFilmGraphBuilder:
             },
         )
 
-        # Interrupt: storyboard review
-        g.add_edge("request_storyboard_review", END)
+        # Interrupt: storyboard review -> continue to generation
+        g.add_edge("request_storyboard_review", "prepare_generation")
 
         # Generation flow
         g.add_edge("prepare_generation", "request_generation_approval")
 
-        # Interrupt: generation approval
-        g.add_edge("request_generation_approval", END)
+        # Interrupt: generation approval -> continue to media pipeline
+        g.add_edge("request_generation_approval", "collect_materials")
 
         # Media pipeline (WP-09 fills in actual implementations)
         g.add_edge("collect_materials", "match_digital_human")
@@ -246,6 +246,11 @@ class AgentFilmGraphBuilder:
         Returns a compiled LangGraph application ready for execution.
         """
         graph = self.build()
+        if self._interrupt_nodes:
+            return graph.compile(
+                checkpointer=self._checkpointer,
+                interrupt_after=list(self._interrupt_nodes),
+            )
         return graph.compile(checkpointer=self._checkpointer)
 
 

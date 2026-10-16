@@ -67,6 +67,9 @@ class RunWorker:
         self._loop: asyncio.AbstractEventLoop | None = None
         self._connection: pika.BlockingConnection | None = None
         self._channel: BlockingChannel | None = None
+        # Background task references (set from the worker thread)
+        self._outbox_task: asyncio.Task[None] | None = None
+        self._health_task: asyncio.Task[None] | None = None
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -89,8 +92,22 @@ class RunWorker:
                     self._channel.stop_consuming()
             except Exception:
                 pass
-        if self._thread:
-            self._thread.join(timeout=10)
+        # Cancel background tasks in the worker thread's event loop
+        if self._loop is not None and self._loop.is_running():
+            loop = self._loop
+            tasks_to_cancel: list[asyncio.Task[None]] = []
+            if self._outbox_task is not None and not self._outbox_task.done():
+                tasks_to_cancel.append(self._outbox_task)
+            if self._health_task is not None and not self._health_task.done():
+                tasks_to_cancel.append(self._health_task)
+            if tasks_to_cancel:
+                for t in tasks_to_cancel:
+                    loop.call_soon_threadsafe(t.cancel)
+                # Brief wait for cancellation to propagate
+                if self._thread is not None:
+                    self._thread.join(timeout=3)
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=5)
         logger.info("Worker stopped")
 
     def _run_loop(self) -> None:
@@ -107,12 +124,9 @@ class RunWorker:
             logger.error("Failed to initialize database pool", extra={"error": str(exc)})
 
         # Start OutboxPublisher as a background task in this loop
-        _outbox_task_ref = None
-        self._outbox: OutboxPublisher | None = None
         try:
             from app.infra.outbox_publisher import OutboxPublisher
             outbox = OutboxPublisher(interval_seconds=5.0, batch_size=100)
-            self._outbox = outbox
 
             async def _outbox_loop() -> None:
                 try:
@@ -124,7 +138,7 @@ class RunWorker:
                 finally:
                     await outbox.stop()
 
-            _outbox_task_ref = self._loop.create_task(_outbox_loop())
+            self._outbox_task = self._loop.create_task(_outbox_loop())
             logger.info("Outbox publisher started in worker thread")
 
             # Start outbox health stats writer
@@ -132,9 +146,9 @@ class RunWorker:
                 health_file = os.environ.get(
                     "OUTBOX_HEALTH_FILE", "/tmp/wisecut-agent-outbox-health.json"
                 )
-                while self._outbox and self._outbox.running:
+                while outbox.running:
                     try:
-                        stats = self._outbox.get_stats()
+                        stats = outbox.get_stats()
                         tmp_file = health_file + ".tmp"
                         with open(tmp_file, "w") as f:
                             json.dump(stats, f)
@@ -143,7 +157,7 @@ class RunWorker:
                         pass
                     await asyncio.sleep(10)
 
-            self._loop.create_task(_outbox_health_loop())
+            self._health_task = self._loop.create_task(_outbox_health_loop())
             logger.info("Outbox health stats writer started")
         except Exception as exc:
             logger.error("Failed to start outbox publisher", extra={"error": str(exc)})

@@ -15,6 +15,8 @@ from __future__ import annotations
 import json
 import os
 import sys
+from datetime import UTC, datetime
+from typing import Any
 
 
 def check_pid_file() -> bool:
@@ -69,7 +71,6 @@ def check_outbox_health() -> dict[str, Any]:
             stats = json.load(f)
         age_seconds = 0
         if stats.get("last_publish_at"):
-            from datetime import datetime, UTC
             last_publish = datetime.fromisoformat(stats["last_publish_at"])
             age_seconds = (datetime.now(UTC) - last_publish).total_seconds()
 

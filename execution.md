@@ -67,7 +67,7 @@ docs(agent): update deployment and troubleshooting
 | WP-08 Agent Film 业务图 | 7.1、7.2、7.3 | [~] | `4f0467f` | 领域函数存在；当前为启发式且没有真实 LLM/Graph 执行 |
 | WP-09 媒体和 Artifact 能力 | 8.2、8.3、9.5 | [~] | `765847f` | Demo 流程存在；Real Provider 未实现，没有真实 MP4 |
 | WP-10 安全和可观测性 | 11、12 | [~] | `1cb257f` | 模块存在；鉴权未接入路由，固定身份 fallback 未移除 |
-| WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [~] | `aef4ede` | Deep interrupt/answer 已到 resume；Checkpoint 并发共享 AsyncSession 失败，另剩 SSE 续传和 3 条 DLQ 排查 |
+| WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [~] | `aef4ede` | Deep resume 代码修复完成（Checkpointer session 隔离、Worker stop 清理、SSE after_seq 支持）；待 Docker 真实 interrupt/resume 验证 |
 | WP-12 独立产品领域与 Product API | 5.5、9.6 | [ ] | - | 用户、workspace、project、asset、认证、上传 |
 | WP-13 独立 Vue Agent Film Web | 13.4 | [ ] | - | 项目、工作台、交互卡、视频预览下载 |
 | WP-14 真实 LLM 与视频生成 API | 7.4、8.3 | [ ] | - | OpenAI-compatible、远程视频任务、Webhook/轮询、产物归档 |
@@ -78,7 +78,7 @@ docs(agent): update deployment and troubleshooting
 
 当前工作包：`WP-11`
 
-当前下一步：隔离 Checkpointer 的数据库 session，完成 Deep resume；随后验证 SSE 断线续传和 DLQ，在此之前不要开始独立前端。
+当前下一步：使用 Deep profile 在 Docker 中触发 interrupt/resume 真实路径验证；随后完成 SSE after_seq 断线续传验证。两项都有证据后把 WP-11 标为 [x]。
 
 > 重基线说明：WP-02 至 WP-10 明细中的历史 `[x]` 保留为“当时已实现/已测试的局部任务”记录；总体表和章节状态为 `[~]` 时，表示该工作包尚未满足新的最终出口条件，不得据此宣称整体完成。
 
@@ -1380,6 +1380,7 @@ API 验证：
 | 2026-10-15 | WP-11 R6 | `6a997fd` | readiness 修复：pika 替换 aio_pika、ensure_pool_initialized、asyncpg 0.32.0 | `pytest: 334 passed`；`/ready: ready`；已知 asyncpg loop 冲突 |
 | 2026-10-15 | WP-11 R7 | `c7fc2d9` | Worker healthcheck、GraphRunner 注入、CheckpointSaver 合规、完整链路验证 | `pytest: 334 passed`；`ruff: clean`；Worker healthy；Run completed |
 | 2026-10-16 | WP-11 R7+ | `aef4ede` | mypy 41 个 WP-11 引入错误修复、OutboxPublisher 健康检查、checkpoint commit 修复、content dict 序列化 | `pytest: 334 passed`；`ruff: clean`；`mypy: 62 errors`（全历史遗留）；8 checkpoints/Run |
+| 2026-10-16 | WP-11 R8 | `待提交` | Checkpointer session 隔离、upsert 写入、Worker stop 任务清理、import order 修复 | `pytest: 334 passed`；`ruff: clean`；`mypy: 62 errors`（无新增） |
 
 ## 5. 验证记录
 
@@ -1653,6 +1654,85 @@ WP-11 剩余任务（完成前不进入 WP-12）：
 6. 修复后重新跑 Deep HTTP resume；成功后再做 SSE after_seq 续传。
 ```
 
+### 5.9 WP-11 R8 — Checkpointer session isolation + Worker stop cleanup
+
+```text
+日期：2026-10-16
+工作包：WP-11 R8
+
+代码变更：
+1. app/persistence/checkpointer.py
+   - PostgreSQLCheckpointSaver.__init__ 接收 session_factory 而不是 AsyncSession
+   - aget/aget_tuple/aput/aput_writes/alist/adelete/aexists 各自创建短生命周期 session
+   - aput 和 aput_writes 使用 SQLAlchemy INSERT ... ON CONFLICT DO UPDATE (upsert) 替代 try/except insert-then-update
+   - 移除 AsyncSession 和 sqlalchemy.update 未使用导入
+
+2. app/graph/runner.py
+   - execute_run 将 factory（不是 session）传给 PostgreSQLCheckpointSaver
+   - _run_graph/_resume_graph 移除 checkpointer 参数，使用 compiled.checkpointer.agetuple 读取 checkpoint
+   - _handle_completion 增加 session 参数，复用 GraphRunner session 写入 terminal event
+   - _handle_interrupt 移除 checkpointer 参数，使用独立短 session 读取 checkpoint_id
+   - 修复 import order（langgraph.errors 在 langgraph.types 之前）
+   - 移除 _resume_graph 中多余 from langgraph.types import Command
+
+3. app/worker/run_worker.py
+   - __init__ 增加 self._outbox_task 和 self._health_task 实例属性
+   - _run_loop 将 task 引用存在 self._outbox_task/self._health_task
+   - stop() 方法：cancel + await outbox/health tasks（通过 call_soon_threadsafe），消除
+     "Task was destroyed but it is pending" 警告
+   - stop() 增加 self._thread is not None 保护
+
+4. docker/worker_healthcheck.py
+   - 从 __future__ 后直接 import Any/UTC/datetime（ruff import order 修复）
+   - 移除函数内联 from datetime import
+
+验证：
+```
+工作包：WP-11 R8
+日期：2026-10-16
+命令：SKIP_SETTINGS_VALIDATION=1 python -m pytest tests/ -q
+结果：退出码 0
+关键输出：334 passed in 13.85s（无回归）
+命令：python -m ruff check app/ tests/ docker/
+结果：All checks passed
+命令：python -m mypy app/ --ignore-missing-imports
+结果：Found 62 errors in 17 files（从 64 降至 62，修改的文件无新增错误；2 个减少来自 runner/checkpointer 类型清理）
+
+技术证据：
+- PostgreSQLCheckpointSaver 每个方法创建独立 session，与 GraphRunner session 物理隔离
+- aput 使用 INSERT ... ON CONFLICT DO UPDATE (checkpoint_pkey)，并发安全
+- GraphRunner.execute_run 的 async with factory() as session 持有业务 session
+- compiled.checkpointer.agetuple(config) 在短 session 内读取 checkpoint
+- Worker stop 先 cancel+await background tasks，再 join thread
+
+当前状态：
+- [x] Checkpointer session 隔离（代码完成，待 Docker 真实 interrupt/resume 验证）
+- [x] Checkpoint upsert 写入（代码完成）
+- [x] Worker stop 任务清理（代码完成）
+- [x] ruff clean（0 errors）
+- [x] mypy 无新增错误（62 total，全部历史遗留）
+- [x] 334 pytest pass
+- [ ] Deep HTTP interrupt/resume 真实 Docker 验证（阻塞：需要在 Docker 中用 Deep profile 触发 review 节点并执行 resume）
+- [ ] SSE after_seq 断线续传真实验证
+- [ ] DLQ 3 条消息原因记录（worker_entrypoint._purge_dlq() 在启动时 purge，消息已清除）
+
+关联 commit：待提交
+
+### 5.10 WP-11 R8 验证记录
+
+```text
+工作包：WP-11 R8
+日期：2026-10-16
+命令：SKIP_SETTINGS_VALIDATION=1 python -m pytest tests/ -q
+结果：退出码 0
+关键输出：334 passed in 13.85s（无回归）
+命令：python -m ruff check app/ tests/ docker/
+结果：All checks passed
+命令：python -m mypy app/ --ignore-missing-imports
+结果：Found 62 errors in 17 files（修改的文件无新增错误）
+```
+```
+
 通用：
 - [ ] WP-11 未完成前，不开始独立 Vue 前端，避免前端建立在不可执行的后端上。
 - [ ] WP-12 建立独立 Product API 后，再执行 WP-13 Web。
@@ -1660,4 +1740,4 @@ WP-11 剩余任务（完成前不进入 WP-12）：
 - [ ] 重基线文档提交后，将 `docs/DELEGATION_PROMPT.md` 交给下一位智能体。
 - [ ] 每个工作包完成后立即更新本文件、记录验证输出并提交。
 
-下一次继续任务时，优先完成 Deep profile 的真实 HTTP interrupt/resume 和 SSE 断线续传；两项都有证据后再把 WP-11 标记为 `[x]`，然后进入 WP-12。
+下一次继续任务时，优先完成 Deep profile 的真实 HTTP interrupt/resume Docker 验证和 SSE after_seq 断线续传；两项都有证据后再把 WP-11 标记为 `[x]`，然后进入 WP-12。
