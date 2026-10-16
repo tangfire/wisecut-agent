@@ -40,18 +40,20 @@
 - `POST /conversations` 已真实返回 `201 Created`，`POST /messages` 已返回 `200` 并发布 Run command。
 - 主链已验证：API -> RabbitMQ -> Worker -> GraphRunner -> LangGraph -> completed，并确认 8 个 checkpoint 持久化。
 - 当前剩余只有真实 HTTP interrupt/resume 和 SSE 断线续传；Real Provider 留到 WP-14。
-- 当前工作区干净，不能回退已提交实现。
+- 当前工作区有 4 个未提交文件：`app/application/sync_services.py`、`app/graph/builder.py`、`app/graph/runner.py`、`app/persistence/checkpointer.py`。这些是 interrupt/resume 收口改动，严禁 reset、checkout、clean 或覆盖；先审阅 diff、测试并提交。
 - 当前验证基线：`pytest tests -q` 为 334 passed，`python -m ruff check app tests` 通过，`python -m mypy app --ignore-missing-imports` 为 62 errors（历史遗留）。
 - Real Provider 留到 WP-14，不要在 WP-11 中实现。
 - 不要直接把全项目迁移到同步 psycopg2；先修 Worker healthcheck 和 GraphRunner 注入，再验证真实消息链。
 
 本次收口任务必须按以下顺序：
-1. 使用 `one-click-cocreate`/Deep profile 创建真实会话，触发商品或脚本 review interaction。
-2. 通过真实 HTTP 提交 interaction response，确认同一 checkpoint 恢复并推进到下一节点。
-3. 断开 SSE 客户端后使用 `after_seq` 重连，确认事件不重复、不丢失。
-4. 记录容器状态、事件、checkpoint、Run terminal 状态和 SSE 续传证据。
-5. 运行 pytest、ruff、mypy 和 Compose/容器验证，更新 execution.md 并提交聚焦 commit。
-6. 两项证据都完成后才把 WP-11 标记为 `[x]`，然后进入 WP-12。
+1. 审阅上述 4 个未提交文件，运行 pytest、ruff、mypy，确认没有丢失已有逻辑。
+2. 使用 `one-click-cocreate`/Deep profile 创建真实会话，触发商品或脚本 review interaction。
+3. 通过真实 HTTP 提交 interaction response，确认同一 checkpoint 恢复并推进到下一节点。
+4. 断开 SSE 客户端后使用 `after_seq` 重连，确认事件不重复、不丢失。
+5. 检查 RabbitMQ DLQ 中的遗留消息并记录原因，不要无证据清空。
+6. 记录容器状态、事件、checkpoint、Run terminal 状态和 SSE 续传证据。
+7. 运行 pytest、ruff、mypy 和 Compose/容器验证，更新 execution.md 并提交聚焦 commit。
+8. 两项证据都完成后才把 WP-11 标记为 `[x]`，然后进入 WP-12。
 ```
 
 ## 智能体每轮结束时必须返回
