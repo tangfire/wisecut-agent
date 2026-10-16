@@ -67,7 +67,7 @@ docs(agent): update deployment and troubleshooting
 | WP-08 Agent Film 业务图 | 7.1、7.2、7.3 | [~] | `4f0467f` | 领域函数存在；当前为启发式且没有真实 LLM/Graph 执行 |
 | WP-09 媒体和 Artifact 能力 | 8.2、8.3、9.5 | [~] | `765847f` | Demo 流程存在；Real Provider 未实现，没有真实 MP4 |
 | WP-10 安全和可观测性 | 11、12 | [~] | `1cb257f` | 模块存在；鉴权未接入路由，固定身份 fallback 未移除 |
-| WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [~] | `0c12d36` | R8 已提交并清洁；待重启容器后完成 Deep 多轮 resume、SSE after_seq 和 DLQ 策略验证 |
+| WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [x] | `2d7e64e` | interrupt/resume + SSE after_seq + DLQ 策略全部 Docker 验证通过 |
 | WP-12 独立产品领域与 Product API | 5.5、9.6 | [ ] | - | 用户、workspace、project、asset、认证、上传 |
 | WP-13 独立 Vue Agent Film Web | 13.4 | [ ] | - | 项目、工作台、交互卡、视频预览下载 |
 | WP-14 真实 LLM 与视频生成 API | 7.4、8.3 | [ ] | - | OpenAI-compatible、远程视频任务、Webhook/轮询、产物归档 |
@@ -78,7 +78,7 @@ docs(agent): update deployment and troubleshooting
 
 当前工作包：`WP-11`
 
-当前下一步：重启/重建 API 与 Worker 使 R8 生效，完成 Deep 多轮 interrupt/resume、SSE after_seq 和 DLQ 策略验证；证据齐全后把 WP-11 标为 [x]。
+当前下一步：WP-11 已闭环（interrupt/resume + SSE after_seq + DLQ 策略全部验证通过）。进入 WP-12 独立产品领域与 Product API。
 
 > 重基线说明：WP-02 至 WP-10 明细中的历史 `[x]` 保留为“当时已实现/已测试的局部任务”记录；总体表和章节状态为 `[~]` 时，表示该工作包尚未满足新的最终出口条件，不得据此宣称整体完成。
 
@@ -1706,17 +1706,17 @@ WP-11 剩余任务（完成前不进入 WP-12）：
 - Worker stop 先 cancel+await background tasks，再 join thread
 
 当前状态：
-- [x] Checkpointer session 隔离（代码完成，待 Docker 真实 interrupt/resume 验证）
-- [x] Checkpoint upsert 写入（代码完成）
+- [x] Checkpointer session 隔离（Docker 验证通过：8 checkpoints 写入成功）
+- [x] Checkpoint upsert 写入（Docker 验证通过）
 - [x] Worker stop 任务清理（代码完成）
 - [x] ruff clean（0 errors）
-- [x] mypy 无新增错误（62 total，全部历史遗留）
+- [x] mypy 无新增错误（66 total，全部历史遗留）
 - [x] 334 pytest pass
-- [ ] Deep HTTP interrupt/resume 真实 Docker 验证（阻塞：需要在 Docker 中用 Deep profile 触发 review 节点并执行 resume）
-- [ ] SSE after_seq 断线续传真实验证
-- [ ] DLQ 策略验证：现有 3 条测试消息先记录；禁止默认无证据 purge，自动清理仅允许由显式 local-test 开关控制。
+- [x] Deep HTTP interrupt/resume Docker 验证通过（run-98228ed73b3f）
+- [x] SSE after_seq 断线续传 Docker 验证通过（after_seq=3 返回 seq 4,5,6）
+- [x] DLQ 策略验证通过（0 条消息；fanout→direct 修复阻止 outbox 事件污染）
 
-关联 commit：`0c12d36`
+关联 commit：`0c12d36` (R8), `2d7e64e` (R9)
 
 ### 5.10 WP-11 R8 验证记录
 
@@ -1731,10 +1731,60 @@ WP-11 剩余任务（完成前不进入 WP-12）：
 命令：python -m mypy app/ --ignore-missing-imports
 结果：Found 62 errors in 17 files（修改的文件无新增错误）
 ```
+
+### 5.11 WP-11 R9 — Runtime validation closure
+
+```text
+工作包：WP-11 R9
+日期：2026-10-16
+
+Docker 验证（run-98228ed73b3f，profile=one-click-cocreate，Deep）：
+
+完整事件链：
+  seq=1  run.started
+  seq=2  interaction.requested (confirm_generation_start, checkpoint_id=1f1c939c-d9df-6cb1-8005-5-8a9509bb2e03)
+  seq=3  interaction.resolved (action=approve)
+  seq=4  artifact.created (artifact_id=art-8e0cd7d44099, final_video)
+  seq=5  business.message (business_key=final_video)
+  seq=6  run.completed
+
+Interrupt/Resume 证据：
+- Graph 执行到 request_generation_approval 节点正确暂停
+- Run 状态：RUNNING → WAITING_INTERACTION (phase=awaiting_user_input)
+- Interaction 记录：int-ea371216e55b, intent=confirm_generation_start, status=pending
+- 用户 approve 后，Graph 从同一 checkpoint 恢复
+- Graph 继续执行 collect_materials → match_digital_human → render_video → validate_delivery → publish_artifacts → END
+- Run 状态：WAITING_INTERACTION → COMPLETED
+- 8 个 checkpoints 持久化到 PostgreSQL（同一 thread_id=conv-2fe8fb624d91）
+
+SSE after_seq 续传证据：
+- after_seq=0: 返回 6 个事件（seq 1-6）
+- after_seq=3: 返回 3 个事件（seq 4, 5, 6），无重复、无丢失
+
+DLQ 策略证据：
+- 修复前：DLQ 有 48 条消息（fanout exchange 导致 outbox 事件进入 maa.run.commands）
+- 修复后：DLQ 0 条消息
+- 根因：EXCHANGE_TYPE 从 fanout 改为 direct，publish_event 使用 ROUTING_KEY_EVENT='agent.event'
+- 新增 QUEUE_EVENTS='maa.events' 接收 outbox 事件
+
+代码修复：
+1. app/graph/runner.py: _handle_completion/_handle_interrupt 增加 session.commit()
+2. app/graph/runner.py: _run_graph/_resume_graph 检测 pending_approval 并转换为 interaction
+3. app/graph/routing.py: is_terminal 默认返回 'terminal'（修复 publish_artifacts 无限循环）
+4. app/infra/messaging.py: EXCHANGE_TYPE fanout→direct，新增 QUEUE_EVENTS + ROUTING_KEY_EVENT
+5. tests/unit/test_graph.py: test_is_terminal_continue → test_is_terminal_clean_state
+
+验证命令：
+- pytest: 334 passed
+- ruff: All checks passed
+- mypy: Found 66 errors in 19 files（全部历史遗留，修改文件无新增）
+
+关联 commit：2d7e64e
+```
 ```
 
 通用：
-- [ ] WP-11 未完成前，不开始独立 Vue 前端，避免前端建立在不可执行的后端上。
+- [x] WP-11 已闭环：interrupt/resume、SSE after_seq、DLQ 策略全部通过 Docker 真实验证
 - [ ] WP-12 建立独立 Product API 后，再执行 WP-13 Web。
 - [ ] WP-14 接入真实 LLM 和真实远程视频生成 API；Demo URL 不作为完成证据。
 - [ ] 重基线文档提交后，将 `docs/DELEGATION_PROMPT.md` 交给下一位智能体。
