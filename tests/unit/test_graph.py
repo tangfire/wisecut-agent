@@ -179,7 +179,7 @@ class TestRouting:
         }
         assert is_terminal(state) == "terminal"
 
-    def test_is_terminal_continue(self):
+    def test_is_terminal_clean_state(self):
         from app.graph.routing import is_terminal
 
         state = {
@@ -187,7 +187,9 @@ class TestRouting:
             "errors": [],
             "retry_count": 0,
         }
-        assert is_terminal(state) == "continue"
+        # Clean state is terminal: publish_artifacts is the last node,
+        # retry logic is handled per-node in _wrap_node
+        assert is_terminal(state) == "terminal"
 
     def test_should_retry_within_limit(self):
         from app.graph.routing import should_retry

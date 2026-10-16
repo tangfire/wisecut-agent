@@ -15,7 +15,8 @@ from langgraph.checkpoint.base import (
     CheckpointMetadata,
     CheckpointTuple,
 )
-from sqlalchemy import desc, insert, select
+from sqlalchemy import desc, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.persistence.models import Checkpoint as CheckpointModel
 from app.persistence.repositories import CheckpointRepository
@@ -180,7 +181,7 @@ class PostgreSQLCheckpointSaver(BaseCheckpointSaver[Any]):
 
         async with self._session_factory() as session:
             stmt = (
-                insert(CheckpointModel)
+                pg_insert(CheckpointModel)
                 .values(
                     thread_id=thread_id,
                     checkpoint_id=checkpoint_id,
@@ -188,7 +189,7 @@ class PostgreSQLCheckpointSaver(BaseCheckpointSaver[Any]):
                     state_json=state,
                     metadata_json=meta,
                 )
-                .on_conflict_do_update(  # type: ignore[attr-defined]
+                .on_conflict_do_update(
                     constraint="checkpoint_pkey",
                     set_={
                         "state_json": state,
@@ -242,7 +243,7 @@ class PostgreSQLCheckpointSaver(BaseCheckpointSaver[Any]):
                 state[channel] = value
 
             stmt = (
-                insert(CheckpointModel)
+                pg_insert(CheckpointModel)
                 .values(
                     thread_id=model.thread_id,
                     checkpoint_id=model.checkpoint_id,
@@ -250,7 +251,7 @@ class PostgreSQLCheckpointSaver(BaseCheckpointSaver[Any]):
                     state_json=state,
                     metadata_json=model.metadata_json or {},
                 )
-                .on_conflict_do_update(  # type: ignore[attr-defined]
+                .on_conflict_do_update(
                     constraint="checkpoint_pkey",
                     set_={"state_json": state},
                 )

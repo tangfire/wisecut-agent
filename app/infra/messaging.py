@@ -30,14 +30,16 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 EXCHANGE_NAME = "maa.exchange"
-EXCHANGE_TYPE = "fanout"
+EXCHANGE_TYPE = "direct"
 
 QUEUE_RUN_COMMANDS = "maa.run.commands"
 QUEUE_RETRY = "maa.run.commands.retry"
 QUEUE_DLQ = "maa.run.commands.dlq"
+QUEUE_EVENTS = "maa.events"
 
 ROUTING_KEY_RUN = "run.command"
 ROUTING_KEY_RETRY = "run.command.retry"
+ROUTING_KEY_EVENT = "agent.event"
 
 RETRY_TTL_MS = 30_000  # 30 seconds before retry queue forwards to DLQ
 
@@ -98,11 +100,16 @@ class RabbitMQConnection:
             "x-dead-letter-routing-key": QUEUE_RETRY,
         })
 
+        # Events queue (for outbox/domain events; no consumer in Worker)
+        ch.queue_declare(queue=QUEUE_EVENTS, durable=True)
+
         # Bindings
         ch.queue_bind(exchange=EXCHANGE_NAME, queue=QUEUE_RUN_COMMANDS,
                       routing_key=ROUTING_KEY_RUN)
         ch.queue_bind(exchange=EXCHANGE_NAME, queue=QUEUE_RETRY,
                       routing_key=ROUTING_KEY_RETRY)
+        ch.queue_bind(exchange=EXCHANGE_NAME, queue=QUEUE_EVENTS,
+                      routing_key=ROUTING_KEY_EVENT)
 
         logger.info(
             "RabbitMQ topology declared",
@@ -188,9 +195,13 @@ def publish_event(
     event_type: str,
     payload: dict[str, Any],
     exchange: str = EXCHANGE_NAME,
-    routing_key: str = "",
+    routing_key: str = ROUTING_KEY_EVENT,
 ) -> None:
-    """Publish a domain event to the exchange."""
+    """Publish a domain event to the exchange.
+
+    Uses ROUTING_KEY_EVENT so the message routes to the maa.events queue
+    only, NOT to maa.run.commands (which is bound to ROUTING_KEY_RUN).
+    """
     ch.basic_publish(
         exchange=exchange,
         routing_key=routing_key,

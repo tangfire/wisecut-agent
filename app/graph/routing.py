@@ -89,7 +89,9 @@ def is_terminal(state: AgentFilmState) -> str:
         if err.get("fatal"):
             return "terminal"
 
-    return "continue"
+    # Default: terminal (publish_artifacts is the last node)
+    # Retry logic is handled per-node in _wrap_node, not via graph loop
+    return "terminal"
 
 
 def should_retry(state: AgentFilmState) -> str:

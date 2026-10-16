@@ -224,7 +224,7 @@ class GraphRunner:
                     interrupted = True
                     # Fetch full state from the checkpointer
                     try:
-                        checkpoint_tuple = await compiled.checkpointer.agetuple(  # type: ignore[attr-defined]
+                        checkpoint_tuple = await compiled.checkpointer.agetuple(
                             config
                         )
                         if checkpoint_tuple:
@@ -242,8 +242,22 @@ class GraphRunner:
                 if session is not None:
                     await session.commit()
 
-                # Extract pending_interaction from state
+                # Extract pending interaction or approval from state
+                # Both pending_interaction and pending_approval cause the graph to pause
                 pending_interaction = state.get("pending_interaction")
+                if pending_interaction is None:
+                    pending_approval = state.get("pending_approval")
+                    if pending_approval is not None:
+                        # Convert approval to interaction format for the frontend
+                        pending_interaction = {
+                            "intent": pending_approval.get("intent", "confirm_generation_start"),
+                            "render_type": pending_approval.get("render_type", "generation_cost_confirm"),
+                            "title": pending_approval.get("title", "确认开始生成视频"),
+                            "description": pending_approval.get("description", ""),
+                            "cost_breakdown": pending_approval.get("cost_breakdown", {}),
+                            "actions": pending_approval.get("actions", ["approve", "cancel"]),
+                            "source": "approval",
+                        }
 
                 await self._handle_interrupt(
                     exc=None,
@@ -306,7 +320,7 @@ class GraphRunner:
                     # Graph paused for interaction again
                     interrupted = True
                     try:
-                        checkpoint_tuple = await compiled.checkpointer.agetuple(  # type: ignore[attr-defined]
+                        checkpoint_tuple = await compiled.checkpointer.agetuple(
                             config
                         )
                         if checkpoint_tuple:
@@ -324,6 +338,19 @@ class GraphRunner:
                     await session.commit()
 
                 pending_interaction = state.get("pending_interaction")
+                if pending_interaction is None:
+                    pending_approval = state.get("pending_approval")
+                    if pending_approval is not None:
+                        pending_interaction = {
+                            "intent": pending_approval.get("intent", "confirm_generation_start"),
+                            "render_type": pending_approval.get("render_type", "generation_cost_confirm"),
+                            "title": pending_approval.get("title", "确认开始生成视频"),
+                            "description": pending_approval.get("description", ""),
+                            "cost_breakdown": pending_approval.get("cost_breakdown", {}),
+                            "actions": pending_approval.get("actions", ["approve", "cancel"]),
+                            "source": "approval",
+                        }
+
                 await self._handle_interrupt(
                     exc=None,
                     run_id=run_id,
@@ -460,6 +487,9 @@ class GraphRunner:
             "Run paused for interaction",
             extra={"run_id": run_id, "thread_id": thread_id, "has_interaction": bool(pending_interaction)},
         )
+        # Commit all interaction writes on the shared session
+        if session is not None:
+            await session.commit()
 
     async def _handle_completion(
         self,
@@ -517,6 +547,8 @@ class GraphRunner:
                 "finished_at": datetime.now(UTC).isoformat(),
             },
         )
+        # Commit run status update + terminal event on the shared session
+        await session.commit()
 
     async def _mark_cancelled(self, run_id: str) -> None:
         """Mark a run as cancelled."""
