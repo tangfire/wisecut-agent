@@ -12,13 +12,17 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator
 
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from app.settings import settings
 
 _engine: AsyncEngine | None = None
-_async_session_factory: sessionmaker[AsyncSession] | None = None
+_async_session_factory: async_sessionmaker[AsyncSession] | None = None
 _pool_ready = False
 
 
@@ -55,8 +59,9 @@ async def ensure_pool_initialized() -> None:
         return
     engine = get_engine()
     try:
+        from sqlalchemy import text
         async with engine.connect() as conn:
-            await conn.execute("SELECT 1")
+            await conn.execute(text("SELECT 1"))
         _pool_ready = True
     except Exception:
         # If the check fails (e.g. DB not yet ready), leave pool uninitialized;
@@ -64,10 +69,10 @@ async def ensure_pool_initialized() -> None:
         pass
 
 
-def get_session_factory() -> sessionmaker[AsyncSession]:
+def get_session_factory() -> async_sessionmaker[AsyncSession]:
     global _async_session_factory
     if _async_session_factory is None:
-        _async_session_factory = sessionmaker(
+        _async_session_factory = async_sessionmaker(
             get_engine(),
             class_=AsyncSession,
             expire_on_commit=False,
@@ -77,7 +82,7 @@ def get_session_factory() -> sessionmaker[AsyncSession]:
 
 def create_local_session_factory(
     database_url: str | None = None,
-) -> sessionmaker[AsyncSession]:
+) -> async_sessionmaker[AsyncSession]:
     """Create an independent session factory for a dedicated event loop.
 
     Use this from Worker threads or other contexts that have their own event
@@ -92,7 +97,7 @@ def create_local_session_factory(
         pool_recycle=3600,
         echo=settings.debug,
     )
-    return sessionmaker(local_engine, class_=AsyncSession, expire_on_commit=False)
+    return async_sessionmaker(local_engine, class_=AsyncSession, expire_on_commit=False)
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:

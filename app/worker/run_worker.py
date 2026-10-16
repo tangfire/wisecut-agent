@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import threading
 import time
 from collections.abc import Callable, Coroutine
@@ -107,14 +108,16 @@ class RunWorker:
 
         # Start OutboxPublisher as a background task in this loop
         _outbox_task_ref = None
+        self._outbox: OutboxPublisher | None = None
         try:
             from app.infra.outbox_publisher import OutboxPublisher
             outbox = OutboxPublisher(interval_seconds=5.0, batch_size=100)
+            self._outbox = outbox
 
             async def _outbox_loop() -> None:
                 try:
                     await outbox.start()
-                    while outbox._running:
+                    while outbox.running:
                         await asyncio.sleep(1)
                 except asyncio.CancelledError:
                     pass
@@ -123,6 +126,25 @@ class RunWorker:
 
             _outbox_task_ref = self._loop.create_task(_outbox_loop())
             logger.info("Outbox publisher started in worker thread")
+
+            # Start outbox health stats writer
+            async def _outbox_health_loop() -> None:
+                health_file = os.environ.get(
+                    "OUTBOX_HEALTH_FILE", "/tmp/wisecut-agent-outbox-health.json"
+                )
+                while self._outbox and self._outbox.running:
+                    try:
+                        stats = self._outbox.get_stats()
+                        tmp_file = health_file + ".tmp"
+                        with open(tmp_file, "w") as f:
+                            json.dump(stats, f)
+                        os.replace(tmp_file, health_file)
+                    except Exception:
+                        pass
+                    await asyncio.sleep(10)
+
+            self._loop.create_task(_outbox_health_loop())
+            logger.info("Outbox health stats writer started")
         except Exception as exc:
             logger.error("Failed to start outbox publisher", extra={"error": str(exc)})
 

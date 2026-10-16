@@ -7,18 +7,21 @@ process continues to use asyncpg + async SQLAlchemy in its own event loop.
 
 from __future__ import annotations
 
+from typing import Any
+
 from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
 
 from app.settings import settings as _default_settings
 
-_engine = None
-_session_factory = None
+_engine: Engine | None = None
+_session_factory: sessionmaker[Any] | None = None
 _settings = _default_settings
 
 
-def configure_sync_engine(new_settings) -> None:
+def configure_sync_engine(new_settings: Any) -> None:
     """Update the settings reference and reset cached engine/session factory.
 
     Call this in test fixtures to point the sync engine at the test database.
@@ -29,7 +32,7 @@ def configure_sync_engine(new_settings) -> None:
     _session_factory = None
 
 
-def get_sync_engine():
+def get_sync_engine() -> Engine:
     """Get or create the synchronous SQLAlchemy engine."""
     global _engine
     if _engine is None:
@@ -45,7 +48,7 @@ def get_sync_engine():
         if is_sqlite_mem:
             url = "sqlite:///./.test_shared.db"
 
-        kwargs = {
+        kwargs: dict[str, Any] = {
             "echo": _settings.debug,
             "pool_recycle": 3600,
         }
@@ -59,7 +62,7 @@ def get_sync_engine():
     return _engine
 
 
-def get_sync_session_factory() -> sessionmaker:
+def get_sync_session_factory() -> sessionmaker[Any]:
     """Get or create the synchronous session factory."""
     global _session_factory
     if _session_factory is None:
@@ -70,7 +73,7 @@ def get_sync_session_factory() -> sessionmaker:
     return _session_factory
 
 
-def get_sync_session():
+def get_sync_session() -> Any:
     """Context manager: yields a synchronous DB session."""
     factory = get_sync_session_factory()
     session = factory()

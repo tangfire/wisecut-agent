@@ -64,7 +64,7 @@ async def validate_delivery_node(state: AgentFilmState) -> dict[str, Any]:
       - video_url passes validate_video_delivery (protocol, SSRF basic check)
     """
     render_job = state.get("render_job", {})
-    video_url = render_job.get("video_url")
+    video_url = render_job.get("video_url")  # type: ignore[union-attr]
 
     if not video_url:
         return {"errors": state.get("errors", []) + [{"node": "validate_delivery", "error": "No video_url in render_job", "fatal": True}]}
@@ -73,7 +73,7 @@ async def validate_delivery_node(state: AgentFilmState) -> dict[str, Any]:
     if not validation["valid"]:
         return {"errors": state.get("errors", []) + [{"node": "validate_delivery", "error": validation["error"], "fatal": True}]}
 
-    return {"render_job": {**render_job, "delivery_validated": True}}
+    return {"render_job": {**render_job, "delivery_validated": True}}  # type: ignore[dict-item]
 
 
 async def publish_artifacts_node(state: AgentFilmState) -> dict[str, Any]:

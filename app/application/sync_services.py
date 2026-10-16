@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
 from uuid import uuid4
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 @contextmanager
-def _sync_session():
+def _sync_session() -> Generator[Any, None, None]:
     """Context manager for a synchronous DB session."""
     factory = get_sync_session_factory()
     session = factory()
@@ -92,7 +93,7 @@ class APIConversationService:
             "status": conv.status,
         }
 
-    def get_by_id(self, conversation_id: str):
+    def get_by_id(self, conversation_id: str) -> Any | None:
         """Get conversation by ID."""
         from app.persistence.models import Conversation
         with _sync_session() as session:
@@ -129,7 +130,7 @@ class APIConversationService:
             }
 
 
-def _serialize_message(msg) -> dict:
+def _serialize_message(msg: Any) -> dict[str, Any]:
     return {
         "id": msg.id,
         "conversation_id": msg.conversation_id,
@@ -142,7 +143,7 @@ def _serialize_message(msg) -> dict:
     }
 
 
-def _serialize_run(run) -> dict | None:
+def _serialize_run(run: Any) -> dict[str, Any] | None:
     if run is None:
         return None
     return {
@@ -170,7 +171,7 @@ class APIMessageService:
         self,
         conversation_id: str,
         message_type: str,
-        content: str,
+        content: str | dict[str, Any],
         role: str = "user",
         metadata: dict[str, Any] | None = None,
         request_id: str | None = None,
@@ -181,6 +182,12 @@ class APIMessageService:
 
         run_id = f"run-{uuid4().hex[:12]}"
         message_id = f"msg-{uuid4().hex[:12]}"
+
+        # Serialize dict content to JSON string for DB storage
+        if isinstance(content, dict):
+            content_str = json.dumps(content, ensure_ascii=False)
+        else:
+            content_str = content
 
         # Create Run and Message in database first (Worker needs Run to exist)
         with _sync_session() as session:
@@ -199,7 +206,7 @@ class APIMessageService:
                 run_id=run_id,
                 role=role,
                 type=message_type,
-                content=content,
+                content=content_str,
                 metadata_json=metadata or {},
             )
             session.add(msg)
@@ -305,7 +312,7 @@ class APIMessageService:
 class APIEventService:
     """API event service: reads events from DB for SSE (sync)."""
 
-    def get_events_for_sse(self, run_id: str, after_seq: int = 0):
+    def get_events_for_sse(self, run_id: str, after_seq: int = 0) -> Generator[str, None, None]:
         """Generate SSE event stream for a run (sync)."""
         from app.persistence.models import Event
 
@@ -319,7 +326,7 @@ class APIEventService:
                 sse = encode_sse_event(
                     event_id=event.id,
                     event_type=event.event_type,
-                    payload={
+                    data={
                         **event.payload_json,
                         "seq": event.seq,
                         "conversation_id": event.conversation_id,

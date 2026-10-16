@@ -28,7 +28,9 @@ from app.graph.nodes.product_context import collect_product_context, request_pro
 from app.graph.nodes.script import (
     generate_creative_strategy,
     generate_script,
-    request_storyboard_review,
+)
+from app.graph.nodes.script import (
+    request_storyboard_review_node as request_storyboard_review,
 )
 
 __all__ = [

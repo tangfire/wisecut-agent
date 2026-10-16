@@ -163,6 +163,7 @@ class GraphRunner:
                         interaction_response=interaction_response,
                         run_id=run_id,
                         conversation_id=conversation_id,
+                        session=session,
                     )
                 else:
                     assert initial_state is not None
@@ -173,6 +174,7 @@ class GraphRunner:
                         run_id=run_id,
                         conversation_id=conversation_id,
                         lock=lock,
+                        session=session,
                     )
                 return result
 
@@ -197,6 +199,7 @@ class GraphRunner:
         run_id: str,
         conversation_id: str,
         lock: ConversationLock | None = None,
+        session: Any = None,
     ) -> dict[str, Any]:
         """Execute the graph from the beginning."""
         import redis.asyncio as aioredis
@@ -211,12 +214,16 @@ class GraphRunner:
 
             result = await compiled.ainvoke(initial_state, config)
 
+            # Commit checkpoints written during graph execution
+            await session.commit()
+
             # Graph completed normally
             await self._handle_completion(run_id, conversation_id, result)
             return {"status": "completed", "result": result}
 
         except GraphInterrupt as exc:
-            # Graph paused for interaction
+            # Graph paused for interaction - commit checkpoints
+            await session.commit()
             await self._handle_interrupt(exc, run_id, conversation_id, config["configurable"]["thread_id"])
             return {"status": "waiting_interaction"}
         finally:
@@ -232,6 +239,7 @@ class GraphRunner:
         interaction_response: dict[str, Any],
         run_id: str,
         conversation_id: str,
+        session: Any = None,
     ) -> dict[str, Any]:
         """Resume the graph from an interaction response."""
         import redis.asyncio as aioredis
@@ -250,10 +258,17 @@ class GraphRunner:
                 config,
             )
 
+            # Commit checkpoints written during graph execution
+            if session is not None:
+                await session.commit()
+
             await self._handle_completion(run_id, conversation_id, result)
             return {"status": "completed", "result": result}
 
         except GraphInterrupt as exc:
+            # Commit checkpoints before interrupt
+            if session is not None:
+                await session.commit()
             await self._handle_interrupt(exc, run_id, conversation_id, config["configurable"]["thread_id"])
             return {"status": "waiting_interaction"}
         finally:

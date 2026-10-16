@@ -13,9 +13,6 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
-from app.persistence.repositories import (
-    EventRepository,
-)
 from app.persistence.unit_of_work import UnitOfWork
 from app.protocol.sse import encode_sse_event, is_terminal_event
 
@@ -469,7 +466,7 @@ class EventService:
             sse = encode_sse_event(
                 event_id=event.id,
                 event_type=event.event_type,
-                payload={
+                data={
                     **event.payload_json,
                     "seq": event.seq,
                     "conversation_id": event.conversation_id,
@@ -488,7 +485,7 @@ class EventService:
         run_id: str,
         event_type: str,
         payload: dict[str, Any],
-    ) -> EventRepository:
+    ) -> int:
         """Emit a new event and persist it."""
         seq = await self._events.get_next_seq(conversation_id, run_id)
         event_id = f"evt-{uuid4().hex[:12]}"

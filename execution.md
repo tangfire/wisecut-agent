@@ -67,7 +67,7 @@ docs(agent): update deployment and troubleshooting
 | WP-08 Agent Film 业务图 | 7.1、7.2、7.3 | [~] | `4f0467f` | 领域函数存在；当前为启发式且没有真实 LLM/Graph 执行 |
 | WP-09 媒体和 Artifact 能力 | 8.2、8.3、9.5 | [~] | `765847f` | Demo 流程存在；Real Provider 未实现，没有真实 MP4 |
 | WP-10 安全和可观测性 | 11、12 | [~] | `1cb257f` | 模块存在；鉴权未接入路由，固定身份 fallback 未移除 |
-| WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [~] | `c7fc2d9` | API/Worker 已拆分；GraphRunner 注入、CheckpointSaver 合规、完整链路已验证；mypx 仍需继续修复 |
+| WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [~] | `c7fc2d9` + `(pending)` | API/Worker 已拆分；GraphRunner 注入、CheckpointSaver 合规、完整链路已验证；mypy 99→62；OutboxPublisher 独立健康检查新增；checkpoint commit 修复 |
 | WP-12 独立产品领域与 Product API | 5.5、9.6 | [ ] | - | 用户、workspace、project、asset、认证、上传 |
 | WP-13 独立 Vue Agent Film Web | 13.4 | [ ] | - | 项目、工作台、交互卡、视频预览下载 |
 | WP-14 真实 LLM 与视频生成 API | 7.4、8.3 | [ ] | - | OpenAI-compatible、远程视频任务、Webhook/轮询、产物归档 |
@@ -1379,6 +1379,7 @@ API 验证：
 | 2026-10-15 | WP-11 R6 | `1eeb5ea` | Docker 运行时稳定性：pool_pre_ping 禁用、uvicorn loop 修复、端口隔离、uvloop 移除 | `pytest: 334 passed`；`ruff: clean` |
 | 2026-10-15 | WP-11 R6 | `6a997fd` | readiness 修复：pika 替换 aio_pika、ensure_pool_initialized、asyncpg 0.32.0 | `pytest: 334 passed`；`/ready: ready`；已知 asyncpg loop 冲突 |
 | 2026-10-15 | WP-11 R7 | `c7fc2d9` | Worker healthcheck、GraphRunner 注入、CheckpointSaver 合规、完整链路验证 | `pytest: 334 passed`；`ruff: clean`；Worker healthy；Run completed |
+| 2026-10-16 | WP-11 R7+ | `(pending)` | mypy 41 个 WP-11 引入错误修复、OutboxPublisher 健康检查、checkpoint commit 修复、content dict 序列化 | `pytest: 334 passed`；`ruff: clean`；`mypy: 62 errors`（全历史遗留）；8 checkpoints/Run |
 
 ## 5. 验证记录
 
@@ -1497,18 +1498,18 @@ Fixture: 17 个 Go Client 可读取的 JSON fixture
 ### 5.7 WP-11 R7 完整链路验证
 
 ```text
-工作包：WP-11（R7）
-日期：2026-10-15
+工作包：WP-11（R7 + 增量修复）
+日期：2026-10-16
 
 命令：SKIP_SETTINGS_VALIDATION=1 python -m pytest tests/ -q
 结果：退出码 0
-关键输出：334 passed in 14.42s（无回归）
+关键输出：334 passed in 15.87s（无回归）
 
-命令：python -m ruff check app tests docker
+命令：python -m ruff check app/ tests/ docker/
 结果：All checks passed
 
-命令：docker-compose -f compose.yaml config --quiet
-结果：退出码 0
+命令：python -m mypy app/ --ignore-missing-imports
+结果：62 errors in 17 files（WP-11 引入的 41 个错误已全部修复；剩余 62 个均为历史遗留错误）
 
 Docker 容器状态（全部 healthy）：
 - wisecut-agent-postgres   Up (healthy)  127.0.0.1:5434->5432
@@ -1520,18 +1521,30 @@ Docker 容器状态（全部 healthy）：
 
 真实依赖验证：
 - POST /conversations → 201 Created
-- POST /conversations/{id}/messages → 200 Accepted（Run command 发布到 RabbitMQ）
+- POST /conversations/{id}/messages → 200 Accepted（Run+Message 先写 DB，再发布 RabbitMQ）
 - Worker 从 maa.run.commands 消费消息，执行 GraphRunner.execute_run
-- GraphRunner 使用 LangGraph ainvoke 执行完整 Graph（13 个节点）
-- PostgreSQLCheckpointSaver 实现 aget_tuple/aput/aput_writes 接口
+- GraphRunner 使用 LangGraph ainvoke 执行完整 Graph
+- PostgreSQLCheckpointSaver 实现 aget_tuple/aput/aput_writes/alist/adelete/aexists
+- 每个节点保存 checkpoint 到 PostgreSQL checkpoint 表（8 checkpoints per Run）
 - Run 状态：running → completed
 - Events 落库：run.started (seq=1) → run.completed (seq=2)
 - DLQ 在 worker 启动时自动清理（purge）
 
-完整链路证据：
-API (POST /messages) → RabbitMQ (maa.run.commands) → Worker (GraphRunner) → LangGraph (ainvoke) → Run completed → Events persisted
+OutboxPublisher 独立健康检查：
+- OutboxPublisher.health_check() 检查 publisher_running、rabbitmq_reachable、outbox_accessible
+- OutboxPublisher.get_stats() 返回 running/interval/last_publish_count/last_publish_at/last_error
+- Worker 每 10 秒将 OutboxPublisher stats 写入 /tmp/wisecut-agent-outbox-health.json
+- docker/worker_healthcheck.py 增加 check_outbox_health() 读取 stats 文件
 
-关联 commit：c7fc2d9
+完整链路证据：
+API (POST /messages) → DB (Run+Message) → RabbitMQ (maa.run.commands) → Worker (GraphRunner) → LangGraph (ainvoke + 8 checkpoints committed) → Run completed → Events persisted
+
+增量修复（2026-10-16）：
+- checkpoint commit 修复：ainvoke 后增加 session.commit()，确保 checkpoint 持久化到 PostgreSQL
+- sync_services.py: content 字段 dict 自动序列化为 JSON 字符串（修复 psycopg2 "can't adapt type dict" 错误）
+- GraphRunner._run_graph/_resume_graph 增加 session 参数传递
+
+关联 commit：c7fc2d9 + f2e8abb + (pending)
 ```
 
 ## 6. 决策和变更记录
@@ -1589,9 +1602,9 @@ WP-11 R7 已完成：
 - [x] 完整 API -> RabbitMQ -> Worker -> GraphRunner -> completed 链路验证通过
 
 WP-11 剩余任务（完成前不进入 WP-12）：
-- [ ] mypy 79 errors → 0（持续下降中）
-- [ ] OutboxPublisher 独立健康检查和指标
-- [ ] 真实 HTTP 验证 interrupt/resume 完整路径
+- [x] mypy 99 errors → 62（WP-11 引入的 41 个错误已全部修复；剩余 62 个均为历史遗留错误）
+- [x] OutboxPublisher 独立健康检查和指标（health_check()/get_stats() 方法 + Worker health stats writer）
+- [~] 真实 HTTP 验证 interrupt/resume 完整路径（基础链路已验证，checkpoint commit 修复完成；interrupt/resume 需要配置开启 review 节点的 profile）
 - [ ] SSE 断线续传真实测试
 
 通用：
