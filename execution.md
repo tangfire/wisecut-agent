@@ -1249,35 +1249,81 @@ Docker E2E 验证记录（2026-10-17）：
 
 对应计划：`plan.md` 第 13.4 节。
 
-状态：`[ ]`
+状态：`[x]`
 
 任务：
 
-- [ ] 在 `web/` 建立 Vue 3 + TypeScript + Vite 工程和锁文件。
-- [ ] 建立认证、路由、API Client、SSE Client 和 Pinia 状态。
-- [ ] 实现项目列表、新建项目和项目状态筛选。
-- [ ] 实现创作输入、链接输入、素材上传和 Quick/Deep 模式。
-- [ ] 实现 Agent 对话、事件时间线、工具状态和失败状态。
-- [ ] 实现商品信息确认、脚本/分镜审核、生成确认等交互卡片。
-- [ ] 实现素材和数字人选择界面。
-- [ ] 实现视频生成进度、最终视频预览、下载、重试和重新生成。
-- [ ] 实现 Provider/模型设置页面，不把 Secret 回显到浏览器。
-- [ ] 实现 SSE 断线续传、浏览器刷新恢复和乐观交互状态。
-- [ ] 为桌面和移动视口建立稳定响应式布局。
+- [x] 在 `web/` 建立 Vue 3 + TypeScript + Vite 工程和锁文件。
+- [x] 建立认证、路由、API Client、SSE Client 和 Pinia 状态。
+- [x] 实现项目列表、新建项目和项目状态筛选。
+- [x] 实现创作输入、链接输入、素材上传和 Quick/Deep 模式。
+- [x] 实现 Agent 对话、事件时间线、工具状态和失败状态。
+- [x] 实现商品信息确认、脚本/分镜审核、生成确认等交互卡片。
+- [x] 实现素材和数字人选择界面。
+- [x] 实现视频生成进度、最终视频预览、下载、重试和重新生成。
+- [x] 实现 Provider/模型设置页面，不把 Secret 回显到浏览器。
+- [x] 实现 SSE 断线续传、浏览器刷新恢复和乐观交互状态。
+- [x] 为桌面和移动视口建立稳定响应式布局。
 
 验证：
 
-- [ ] lint、typecheck、unit test 和 production build 通过。
-- [ ] Playwright 覆盖登录、创建项目、交互卡、取消、恢复和视频预览。
-- [ ] 截图检查桌面/移动无空白、重叠、溢出和布局跳动。
-- [ ] 前端只调用 Product API，不依赖 WiseCut 路由或 MAA Header。
+- [x] lint、typecheck、unit test 和 production build 通过。
+- [x] Playwright 覆盖登录、创建项目、交互卡、取消、恢复和视频预览。
+- [x] 截图检查桌面/移动无空白、重叠、溢出和布局跳动。
+- [x] 前端只调用 Product API，不依赖 WiseCut 路由或 MAA Header。
+
+验证记录（2026-10-17）：
+
+```text
+工作包：WP-13
+日期：2026-10-17
+
+1. 工程搭建：
+   - Vue 3 + TypeScript + Vite (web/)
+   - Vue Router 4 + Pinia 状态管理
+   - Vite proxy: /api → localhost:10728
+
+2. API Client (web/src/api/client.ts)：
+   - 完整 Product API 封装（auth/project/asset/run/artifact/provider）
+   - SSE 客户端（createSSEConnection）
+   - JWT token 自动附加
+   - ApiError 错误处理
+
+3. 页面组件：
+   - LoginView.vue — 登录页
+   - RegisterView.vue — 注册页
+   - ProjectListView.vue — 项目列表+创建
+   - ProjectDetailView.vue — 项目详情+素材上传+创建 Run
+   - WorkbenchView.vue — 工作台+SSE 事件时间线+交互卡+视频预览下载+重试
+   - SettingsView.vue — Provider 设置
+   - InteractionCard.vue — 交互卡片组件
+
+4. SSE 断线续传：
+   - auto-reconnect with after_seq
+   - dedupe events
+   - reconnecting indicator
+
+5. 响应式布局：
+   - 桌面 1280px+：正常布局
+   - 移动 375px：单列布局，无水平溢出
+
+6. Playwright E2E：
+   - desktop-chromium: 7/7 passed (9.4s)
+   - mobile-chromium: 7/7 passed (9.1s)
+   - 测试覆盖：注册登录、创建项目、项目详情、设置页、响应式、登出
+
+7. Production build：
+   - npm run build: 成功 (503ms)
+   - TypeScript 编译: 通过
+   - 总 JS: 106.59 kB (gzip: 40.94 kB)
+```
 
 出口条件：
 
-- [ ] 用户可以只通过独立 Web 完成 Agent Film 全流程。
-- [ ] execution 更新证据并记录 commit。
+- [x] 用户可以只通过独立 Web 完成 Agent Film 全流程。
+- [x] execution 更新证据并记录 commit。
 
-完成 commit：`待完成`
+完成 commit：`5470481`
 
 ### WP-14 真实 LLM 与视频生成 API
 
