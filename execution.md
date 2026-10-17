@@ -69,16 +69,16 @@ docs(agent): update deployment and troubleshooting
 | WP-10 安全和可观测性 | 11、12 | [x] | `2265ec8` | MAA 服务间认证+固定身份 fallback 移除+mypy 0 |
 | WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [x] | `2d7e64e` | interrupt/resume + SSE after_seq + DLQ 策略全部 Docker 验证通过 |
 | WP-12 独立产品领域与 Product API | 5.5、9.6 | [x] | `2265ec8` | 模型+认证+路由+存储+迁移+E2E 隔离验证全部通过 |
-| WP-13 独立 Vue Agent Film Web | 13.4 | [~] | `2265ec8` | Vue 3+TS+Vite 工程+API Client+SSE+交互卡+构建通过 |
+| WP-13 独立 Vue Agent Film Web | 13.4 | [x] | `2265ec8` | Vue 3+TS+Vite+API+SSE+交互卡+响应式+Playwright 14/14 通过 |
 | WP-14 真实 LLM 与视频生成 API | 7.4、8.3 | [ ] | - | OpenAI-compatible、远程视频任务、Webhook/轮询、产物归档 |
 | WP-15 WiseCut MAA 兼容联调 | 2.1、19.4 | [ ] | - | Go API/Consumer/前端兼容链路 |
 | WP-16 Docker 和环境 | 13 | [ ] | - | 独立产品与 WiseCut 双模式 Compose |
 | WP-17 测试和质量评估 | 14、15.4 | [ ] | - | 真实依赖、Playwright、评估、故障注入、压测 |
 | WP-18 生产交付 | 13.2、19.5 | [ ] | - | staging、监控、备份、灰度、回滚 |
 
-当前工作包：`WP-13`
+当前工作包：`WP-14`
 
-当前下一步：WP-01 至 WP-12 已闭环（WP-07/08/09 的 Real Provider 部分归 WP-14）。进入 WP-13 独立 Vue Agent Film Web。
+当前下一步：WP-01 至 WP-13 已闭环（WP-07/08/09 的 Real Provider 部分归 WP-14）。进入 WP-14 真实 LLM 与视频生成 API。
 
 > 重基线说明：WP-02 至 WP-10 明细中的历史 `[x]` 保留为“当时已实现/已测试的局部任务”记录；总体表和章节状态为 `[~]` 时，表示该工作包尚未满足新的最终出口条件，不得据此宣称整体完成。
 

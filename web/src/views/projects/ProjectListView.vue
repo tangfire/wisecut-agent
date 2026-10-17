@@ -86,6 +86,11 @@ async function handleCreate() {
 .loading { color: #888; padding: 40px; text-align: center; }
 .empty { color: #888; padding: 40px; text-align: center; background: #fff; border-radius: 8px; }
 .project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+@media (max-width: 640px) {
+  .page-header { flex-direction: column; gap: 12px; }
+  .create-form { flex-direction: column; }
+  .project-grid { grid-template-columns: 1fr; }
+}
 .project-card { background: #fff; border-radius: 8px; padding: 20px; text-decoration: none; color: inherit; border: 1px solid #e0e0e0; transition: box-shadow 0.15s; }
 .project-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
 .project-card h3 { font-size: 16px; margin-bottom: 8px; }

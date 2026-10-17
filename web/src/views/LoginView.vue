@@ -60,4 +60,7 @@ async function handleLogin() {
 .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
 .switch-auth { text-align: center; margin-top: 16px; font-size: 13px; color: #666; }
 .switch-auth a { color: #1a73e8; text-decoration: none; }
+@media (max-width: 480px) {
+  .auth-card { margin: 16px; padding: 24px; }
+}
 </style>

@@ -147,4 +147,12 @@ async function deleteProject() {
 .asset-type { font-size: 12px; color: #888; background: #eee; padding: 2px 8px; border-radius: 4px; }
 .asset-size { font-size: 12px; color: #999; }
 .empty-text { color: #888; font-size: 14px; }
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+  .page-header { flex-direction: column; }
+  .actions { width: 100%; }
+  .run-form-row { flex-direction: column; }
+  .upload-row { flex-direction: column; align-items: stretch; }
+}
 </style>
