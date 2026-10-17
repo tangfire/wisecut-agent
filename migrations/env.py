@@ -1,11 +1,20 @@
 """Alembic migration configuration."""
 
+import os
 from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 
 config = context.config
+
+# Override the database URL from environment variable
+database_url = os.environ.get("DATABASE_URL")
+if database_url:
+    # Convert asyncpg URL to psycopg2 for alembic
+    if "+asyncpg" in database_url:
+        database_url = database_url.replace("+asyncpg", "")
+    config.set_main_option("sqlalchemy.url", database_url)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

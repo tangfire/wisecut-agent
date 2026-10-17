@@ -68,7 +68,7 @@ docs(agent): update deployment and troubleshooting
 | WP-09 媒体和 Artifact 能力 | 8.2、8.3、9.5 | [~] | `765847f` | Demo 流程存在；Real Provider 未实现，没有真实 MP4 |
 | WP-10 安全和可观测性 | 11、12 | [~] | `1cb257f` | 模块存在；鉴权未接入路由，固定身份 fallback 未移除 |
 | WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [x] | `2d7e64e` | interrupt/resume + SSE after_seq + DLQ 策略全部 Docker 验证通过 |
-| WP-12 独立产品领域与 Product API | 5.5、9.6 | [~] | `0bd484f` | 模型+认证+路由+服务骨架；测试 356 passed， ruff clean |
+| WP-12 独立产品领域与 Product API | 5.5、9.6 | [~] | `0bd484f` | 模型+认证+路由+存储+迁移；测试 356 passed， ruff clean |
 | WP-13 独立 Vue Agent Film Web | 13.4 | [ ] | - | 项目、工作台、交互卡、视频预览下载 |
 | WP-14 真实 LLM 与视频生成 API | 7.4、8.3 | [ ] | - | OpenAI-compatible、远程视频任务、Webhook/轮询、产物归档 |
 | WP-15 WiseCut MAA 兼容联调 | 2.1、19.4 | [ ] | - | Go API/Consumer/前端兼容链路 |
@@ -1170,13 +1170,13 @@ API 验证：
 任务：
 
 - [x] 新增 UserAccount、Workspace、Project、Asset、ProviderSetting、RefreshToken 模型和迁移。
-- [ ] 实现注册、登录、刷新、退出和当前用户接口。
-- [ ] 使用安全密码哈希、短期 access token 和可撤销 refresh token。
-- [ ] 实现项目 CRUD、分页、状态和所有权校验。
-- [ ] 实现素材上传、类型/大小校验、对象存储和项目素材列表。
-- [ ] 实现 Product API 的创建 Run、详情、取消、事件 SSE 和交互回答。
-- [ ] 实现 Artifact 列表、预览、下载和重新生成。
-- [ ] 实现 Provider 能力列表和用户级/部署级配置边界。
+- [x] 实现注册、登录、刷新、退出和当前用户接口（JWT + bcrypt）。
+- [x] 使用安全密码哈希、短期 access token 和可撤销 refresh token。
+- [x] 实现项目 CRUD、分页、状态和所有权校验。
+- [x] 实现素材上传、类型/大小校验、对象存储和项目素材列表。
+- [x] 实现 Product API 的创建 Run、详情、取消、事件 SSE 和交互回答。
+- [x] 实现 Artifact 列表、预览、下载和重新生成。
+- [x] 实现 Provider 能力列表和用户级/部署级配置边界。
 - [ ] Product API 与 MAA Compatibility API 共用 application/domain core，但路由和鉴权分离。
 - [ ] 删除浏览器调用对 MAA Header 的依赖。
 

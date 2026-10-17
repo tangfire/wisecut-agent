@@ -27,6 +27,14 @@ pyyaml==6.0.2
 python-dotenv==1.0.1
 jsonschema==4.23.0
 
+# Auth
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+email-validator==2.2.0
+
+# Object Storage
+boto3==1.35.76
+
 # Observability
 opentelemetry-api==1.28.2
 opentelemetry-sdk==1.28.2
