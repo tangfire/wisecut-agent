@@ -69,7 +69,7 @@ docs(agent): update deployment and troubleshooting
 | WP-10 安全和可观测性 | 11、12 | [x] | `2265ec8` | MAA 服务间认证+固定身份 fallback 移除+mypy 0 |
 | WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [x] | `2d7e64e` | interrupt/resume + SSE after_seq + DLQ 策略全部 Docker 验证通过 |
 | WP-12 独立产品领域与 Product API | 5.5、9.6 | [x] | `2265ec8` | 模型+认证+路由+存储+迁移+E2E 隔离验证全部通过 |
-| WP-13 独立 Vue Agent Film Web | 13.4 | [ ] | - | 项目、工作台、交互卡、视频预览下载 |
+| WP-13 独立 Vue Agent Film Web | 13.4 | [~] | `2265ec8` | Vue 3+TS+Vite 工程+API Client+SSE+交互卡+构建通过 |
 | WP-14 真实 LLM 与视频生成 API | 7.4、8.3 | [ ] | - | OpenAI-compatible、远程视频任务、Webhook/轮询、产物归档 |
 | WP-15 WiseCut MAA 兼容联调 | 2.1、19.4 | [ ] | - | Go API/Consumer/前端兼容链路 |
 | WP-16 Docker 和环境 | 13 | [ ] | - | 独立产品与 WiseCut 双模式 Compose |
