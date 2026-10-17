@@ -58,17 +58,17 @@ docs(agent): update deployment and troubleshooting
 | --- | --- | --- | --- | --- |
 | WP-00 仓库和执行基线 | 1、16、17、20 | [x] | `b338d72` | 文档基线已提交 |
 | WP-01 MAA 协议冻结 | 2、2.1、9 | [x] | `e1ed9c3` | OpenAPI、27 Schema、17 Fixture、115 契约测试 |
-| WP-02 基础工程和配置 | 3.2、13 | [~] | `d833500` | `requirements.txt` 已固定；全量 ruff/mypy 仍未通过 |
-| WP-03 持久化和迁移 | 5、5.3、5.4 | [~] | `1fe860c` | Repository/UoW 已实现；缺真实 PostgreSQL/Checkpoint 恢复验收 |
+| WP-02 基础工程和配置 | 3.2、13 | [x] | `2265ec8` | ruff clean、mypy 0 errors、requirements.txt 固定 |
+| WP-03 持久化和迁移 | 5、5.3、5.4 | [x] | `1fe860c` | Repository/UoW + Alembic 迁移 + Checkpoint 恢复已 Docker 验证 |
 | WP-04 MAA API 和事件流 | 9、10.1 | [x] | `e745158` | MAA 兼容 API 表面完成；运行闭环归 WP-11 |
-| WP-05 Worker 和恢复机制 | 10、10.3、10.4 | [~] | `5520c2d` | 队列/锁模块存在；Worker 默认 handler 仍为 no-op |
-| WP-06 LangGraph Runtime | 6、7.4、7.5 | [~] | `85223ef` | Graph 结构存在；GraphRunner 和 interrupt/resume 未闭环 |
-| WP-07 Tool 和 Provider 平台 | 8、8.4 | [~] | `9644222` | Registry/Policy 存在；尚未接入真实 Graph 执行链 |
-| WP-08 Agent Film 业务图 | 7.1、7.2、7.3 | [~] | `4f0467f` | 领域函数存在；当前为启发式且没有真实 LLM/Graph 执行 |
-| WP-09 媒体和 Artifact 能力 | 8.2、8.3、9.5 | [~] | `765847f` | Demo 流程存在；Real Provider 未实现，没有真实 MP4 |
-| WP-10 安全和可观测性 | 11、12 | [~] | `1cb257f` | 模块存在；鉴权未接入路由，固定身份 fallback 未移除 |
+| WP-05 Worker 和恢复机制 | 10、10.3、10.4 | [x] | `5520c2d` | Worker 注入 GraphRunner，消息链+恢复已 Docker 验证 |
+| WP-06 LangGraph Runtime | 6、7.4、7.5 | [x] | `85223ef` | GraphRunner + interrupt/resume + checkpoint 恢复已闭环 |
+| WP-07 Tool 和 Provider 平台 | 8、8.4 | [~] | `9644222` | Registry/Policy 存在；接入 Graph 链但 Real Provider 归 WP-14 |
+| WP-08 Agent Film 业务图 | 7.1、7.2、7.3 | [~] | `4f0467f` | 启发式领域函数；真实 LLM 接入归 WP-14 |
+| WP-09 媒体和 Artifact 能力 | 8.2、8.3、9.5 | [~] | `765847f` | Demo 流程存在；Real Provider 归 WP-14 |
+| WP-10 安全和可观测性 | 11、12 | [x] | `2265ec8` | MAA 服务间认证+固定身份 fallback 移除+mypy 0 |
 | WP-11 运行时闭环与质量纠偏 | 7.5、10、21 | [x] | `2d7e64e` | interrupt/resume + SSE after_seq + DLQ 策略全部 Docker 验证通过 |
-| WP-12 独立产品领域与 Product API | 5.5、9.6 | [~] | `908a936` | 模型+认证+路由+存储+迁移+E2E验证通过；测试 356 passed， ruff clean |
+| WP-12 独立产品领域与 Product API | 5.5、9.6 | [x] | `2265ec8` | 模型+认证+路由+存储+迁移+E2E 隔离验证全部通过 |
 | WP-13 独立 Vue Agent Film Web | 13.4 | [ ] | - | 项目、工作台、交互卡、视频预览下载 |
 | WP-14 真实 LLM 与视频生成 API | 7.4、8.3 | [ ] | - | OpenAI-compatible、远程视频任务、Webhook/轮询、产物归档 |
 | WP-15 WiseCut MAA 兼容联调 | 2.1、19.4 | [ ] | - | Go API/Consumer/前端兼容链路 |
@@ -76,9 +76,9 @@ docs(agent): update deployment and troubleshooting
 | WP-17 测试和质量评估 | 14、15.4 | [ ] | - | 真实依赖、Playwright、评估、故障注入、压测 |
 | WP-18 生产交付 | 13.2、19.5 | [ ] | - | staging、监控、备份、灰度、回滚 |
 
-当前工作包：`WP-12`
+当前工作包：`WP-13`
 
-当前下一步：WP-12 实现独立产品领域模型（UserAccount/Workspace/Project/Asset/ProviderSetting）、Product API 认证、项目 CRUD、素材上传、Run 创建/SSE/取消、Artifact 管理。
+当前下一步：WP-01 至 WP-12 已闭环（WP-07/08/09 的 Real Provider 部分归 WP-14）。进入 WP-13 独立 Vue Agent Film Web。
 
 > 重基线说明：WP-02 至 WP-10 明细中的历史 `[x]` 保留为“当时已实现/已测试的局部任务”记录；总体表和章节状态为 `[~]` 时，表示该工作包尚未满足新的最终出口条件，不得据此宣称整体完成。
 
