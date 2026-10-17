@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Request, status
 from pydantic import BaseModel
@@ -16,12 +17,12 @@ router = APIRouter()
 
 
 class ApprovalDecisionRequest(BaseModel):
-    decision: dict
+    decision: dict[str, Any]
 
 
 class ApprovalDecisionResponse(BaseModel):
-    approval: dict
-    event: dict
+    approval: dict[str, Any]
+    event: dict[str, Any]
     should_resume_runner: bool
 
 
@@ -32,7 +33,7 @@ class ApprovalDecisionResponse(BaseModel):
     summary="Decide on a tool approval",
     tags=["Approval"],
 )
-async def decide_approval(request: Request, approval_id: str, body: ApprovalDecisionRequest):
+async def decide_approval(request: Request, approval_id: str, body: ApprovalDecisionRequest) -> ApprovalDecisionResponse:
     """Approve or deny a pending tool approval."""
     _ = request.state.maa_user_id or ""
     _ = request.state.maa_project_id or ""

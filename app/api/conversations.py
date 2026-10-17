@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Request, status
 from pydantic import BaseModel, Field
 
@@ -25,21 +27,22 @@ class CreateConversationResponse(BaseModel):
 
 
 class ConversationDetailResponse(BaseModel):
-    conversation: dict
-    active_run: dict | None
-    messages: list[dict]
-    interactions: list[dict]
-    recent_events: list[dict]
+    conversation: dict[str, Any]
+    active_run: dict[str, Any] | None
+    messages: list[dict[str, Any]]
+    interactions: list[dict[str, Any]]
+    recent_events: list[dict[str, Any]]
 
 
-def _extract_maa_context(request: Request) -> dict:
-    """Extract MAA protocol headers set by the Go Client."""
+def _extract_maa_context(request: Request) -> dict[str, str]:
+    """Extract MAA protocol headers set by the Go Client.
+
+    WP-10: no random-identity fallback.  In demo mode the headers
+    may be empty (contract fixtures).  In staging/production the
+    service auth middleware already validated the request.
+    """
     user_id = getattr(request.state, "maa_user_id", "") or ""
     project_id = getattr(request.state, "maa_project_id", "") or ""
-    if not user_id:
-        user_id = f"dev-{__import__('uuid').uuid4().hex[:8]}"
-    if not project_id:
-        project_id = f"dev-{__import__('uuid').uuid4().hex[:8]}"
     return {
         "user_id": user_id,
         "project_id": project_id,
@@ -55,7 +58,7 @@ def _extract_maa_context(request: Request) -> dict:
     summary="Create a new conversation",
     tags=["Conversation"],
 )
-async def create_conversation(request: Request, body: CreateConversationRequest):
+async def create_conversation(request: Request, body: CreateConversationRequest) -> CreateConversationResponse:
     """Create a new MAA conversation."""
     maa_context = _extract_maa_context(request)
     profile_id = body.agent_profile_id or "one-click-quick"
@@ -90,7 +93,7 @@ async def create_conversation(request: Request, body: CreateConversationRequest)
     summary="Get conversation detail",
     tags=["Conversation"],
 )
-async def get_conversation(request: Request, conversation_id: str):
+async def get_conversation(request: Request, conversation_id: str) -> ConversationDetailResponse:
     """Get conversation snapshot."""
     _extract_maa_context(request)
     service = APIConversationService()

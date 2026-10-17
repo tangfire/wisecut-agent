@@ -176,7 +176,7 @@ def create_demo_provider(provider_type: str) -> BaseProvider:
         ValueError: If provider_type is unknown.
         RuntimeError: If demo provider is disabled in settings.
     """
-    providers = {
+    providers: dict[str, Any] = {
         "product_research": DemoProductResearchProvider,
         "materials": DemoMaterialProvider,
         "digital_human": DemoDigitalHumanProvider,
@@ -188,7 +188,8 @@ def create_demo_provider(provider_type: str) -> BaseProvider:
             f"Unknown demo provider type: {provider_type!r}. "
             f"Known types: {sorted(providers)}"
         )
-    return cls()
+    provider: BaseProvider = cls()
+    return provider
 
 
 def is_demo_provider_enabled() -> bool:

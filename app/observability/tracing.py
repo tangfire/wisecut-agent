@@ -9,6 +9,7 @@ Provides:
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from app.settings import settings
 
@@ -90,7 +91,7 @@ def setup_tracing(app: object | None = None) -> None:
         _tracer_provider_initialized = True
 
 
-def get_tracer():
+def get_tracer() -> Any:
     """Get the global tracer instance."""
     global _tracer
     if _tracer is None:
@@ -102,7 +103,7 @@ def get_tracer():
     return _tracer
 
 
-def create_span(name: str, attributes: dict[str, str] | None = None):
+def create_span(name: str, attributes: dict[str, str] | None = None) -> Any:
     """Create a span context manager.
 
     Usage:
@@ -120,14 +121,14 @@ def create_span(name: str, attributes: dict[str, str] | None = None):
 class _NoOpSpan:
     """No-op span when tracing is not available."""
 
-    def __enter__(self):
+    def __enter__(self) -> Any:
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, *args: Any) -> None:
         pass
 
-    def set_attribute(self, *args, **kwargs):
+    def set_attribute(self, *args: Any, **kwargs: Any) -> None:
         pass
 
-    def record_exception(self, *args, **kwargs):
+    def record_exception(self, *args: Any, **kwargs: Any) -> None:
         pass

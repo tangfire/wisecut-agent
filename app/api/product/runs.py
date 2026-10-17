@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
+from sse_starlette import EventSourceResponse
 
 from app.application.sync_services import APIRunService
 from app.security.auth import get_current_user_id
@@ -49,7 +51,7 @@ def _serialize_run(run: Any) -> RunResponse:
 
 
 @router.post("/runs", response_model=RunResponse, status_code=status.HTTP_201_CREATED, tags=["Runs"])
-def create_run(request: Request, body: CreateRunRequest):
+def create_run(request: Request, body: CreateRunRequest) -> RunResponse:
     """Create a new Agent Film run in the user's default conversation."""
     user_id = get_current_user_id(request)
     if not user_id:
@@ -71,7 +73,7 @@ def create_run(request: Request, body: CreateRunRequest):
 
 
 @router.get("/runs/{run_id}", response_model=RunResponse, tags=["Runs"])
-def get_run(request: Request, run_id: str):
+def get_run(request: Request, run_id: str) -> RunResponse:
     """Get run details."""
     user_id = get_current_user_id(request)
     if not user_id:
@@ -89,7 +91,7 @@ def get_run(request: Request, run_id: str):
 
 
 @router.get("/runs/{run_id}/events", tags=["Runs"])
-def stream_run_events(request: Request, run_id: str, after_seq: int = 0):
+def stream_run_events(request: Request, run_id: str, after_seq: int = 0) -> EventSourceResponse:
     """Stream run events via SSE with after_seq support."""
     user_id = get_current_user_id(request)
     if not user_id:
@@ -103,17 +105,16 @@ def stream_run_events(request: Request, run_id: str, after_seq: int = 0):
     if not service.verify_run_access(run_id, user_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="forbidden")
 
-    async def event_generator():
+    async def event_generator() -> AsyncIterator[str]:
         yield ": connected\n\n"
         for sse_event in service.get_events_for_sse(run_id, after_seq=after_seq):
             yield sse_event
 
-    from sse_starlette import EventSourceResponse
     return EventSourceResponse(event_generator())
 
 
 @router.post("/runs/{run_id}/cancel", response_model=CancelResponse, tags=["Runs"])
-def cancel_run(request: Request, run_id: str):
+def cancel_run(request: Request, run_id: str) -> CancelResponse:
     """Request cancellation of a run."""
     user_id = get_current_user_id(request)
     if not user_id:
@@ -132,7 +133,7 @@ def cancel_run(request: Request, run_id: str):
 
 
 @router.post("/interactions/{interaction_id}/responses", tags=["Interactions"])
-def respond_to_interaction(request: Request, interaction_id: str, body: dict[str, Any]):
+def respond_to_interaction(request: Request, interaction_id: str, body: dict[str, Any]) -> dict[str, Any]:
     """Submit a response to an interaction."""
     user_id = get_current_user_id(request)
     if not user_id:

@@ -85,7 +85,7 @@ class ConversationService:
         recent_events = detail["recent_events"]
 
         # Serialize
-        def _serialize_message(msg) -> dict:
+        def _serialize_message(msg: Any) -> dict[str, Any]:
             return {
                 "id": msg.id,
                 "conversation_id": msg.conversation_id,
@@ -97,7 +97,7 @@ class ConversationService:
                 "created_at": msg.created_at.isoformat() if msg.created_at else None,
             }
 
-        def _serialize_interaction(inter) -> dict:
+        def _serialize_interaction(inter: Any) -> dict[str, Any]:
             return {
                 "id": inter.id,
                 "conversation_id": inter.conversation_id,
@@ -111,7 +111,7 @@ class ConversationService:
                 "resolved_at": inter.resolved_at.isoformat() if inter.resolved_at else None,
             }
 
-        def _serialize_event(evt) -> dict:
+        def _serialize_event(evt: Any) -> dict[str, Any]:
             return {
                 "id": evt.id,
                 "run_id": evt.run_id,
@@ -122,7 +122,7 @@ class ConversationService:
                 "created_at": evt.created_at.isoformat() if evt.created_at else None,
             }
 
-        def _serialize_run(run) -> dict | None:
+        def _serialize_run(run: Any) -> dict[str, Any] | None:
             if run is None:
                 return None
             return {

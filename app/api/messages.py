@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Request, status
 
 from app.application.sync_services import APIMessageService
@@ -12,14 +14,15 @@ from app.security.authz import verify_conversation_access
 router = APIRouter()
 
 
-def _extract_maa_context(request: Request) -> dict:
-    """Extract MAA protocol headers set by the Go Client."""
+def _extract_maa_context(request: Request) -> dict[str, str]:
+    """Extract MAA protocol headers set by the Go Client.
+
+    WP-10: no random-identity fallback.  In demo mode the headers
+    may be empty (contract fixtures).  In staging/production the
+    service auth middleware already validated the request.
+    """
     user_id = getattr(request.state, "maa_user_id", "") or ""
     project_id = getattr(request.state, "maa_project_id", "") or ""
-    if not user_id:
-        user_id = f"dev-{__import__('uuid').uuid4().hex[:8]}"
-    if not project_id:
-        project_id = f"dev-{__import__('uuid').uuid4().hex[:8]}"
     return {
         "user_id": user_id,
         "project_id": project_id,
@@ -28,13 +31,13 @@ def _extract_maa_context(request: Request) -> dict:
     }
 
 
-def _get_sync_session():
+def _get_sync_session() -> Any:
     """Get a sync DB session for read operations."""
     return get_sync_session_factory()()
 
 
 @router.get("/conversations/{conversation_id}/messages", summary="List messages", tags=["Message"])
-async def list_messages(request: Request, conversation_id: str):
+async def list_messages(request: Request, conversation_id: str) -> list[dict[str, Any]]:
     """Return all messages for the conversation."""
     from app.persistence.models import Conversation, Message
 
@@ -70,7 +73,7 @@ async def list_messages(request: Request, conversation_id: str):
 
 
 @router.post("/conversations/{conversation_id}/messages", status_code=status.HTTP_200_OK, summary="Post a message", tags=["Message"])
-async def post_message(request: Request, conversation_id: str, body: dict):
+async def post_message(request: Request, conversation_id: str, body: dict[str, Any]) -> dict[str, Any]:
     """Accept message, guidance, or interaction_response.
 
     Publishes a Run command to RabbitMQ. The Worker handles DB writes.

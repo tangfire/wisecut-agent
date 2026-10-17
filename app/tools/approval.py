@@ -16,7 +16,6 @@ from app.persistence.repositories import (
     ApprovalRepository,
     EventRepository,
     OutboxRepository,
-    ToolExecutionRepository,
 )
 from app.persistence.unit_of_work import unit_of_work
 from app.protocol.language import generate_id
@@ -81,9 +80,11 @@ class ApprovalService:
             # Link approval to tool_execution if provided
             if tool_execution_id:
                 from sqlalchemy import update
+
+                from app.persistence.models import ToolExecution
                 await uow.session.execute(
-                    update(ToolExecutionRepository._model)
-                    .where(ToolExecutionRepository._model.id == tool_execution_id)
+                    update(ToolExecution)
+                    .where(ToolExecution.id == tool_execution_id)
                     .values(metadata_json={"approval_id": approval_id})
                 )
 

@@ -41,6 +41,15 @@ from app.providers.video import VideoRenderProvider
 
 logger = logging.getLogger(__name__)
 
+
+def _safe_len(value: object) -> int:
+    """Safely get length of a value that may be a list."""
+    if value is None:
+        return 0
+    if isinstance(value, (list, tuple, str, dict)):
+        return len(value)
+    return 0
+
 # Prompt templates for LLM-assisted generation
 _STRATEGY_PROMPT = """Generate a marketing creative strategy for the following product.
 
@@ -683,7 +692,7 @@ async def generate_script(state: AgentFilmState) -> dict[str, Any]:
         "language": language,
         "profile_mode": profile.mode,
     }
-    segments_count = len(script.get("segments", []))
+    segments_count = _safe_len(script.get("segments"))
     logger.info("Script generated via heuristic: %d segments", segments_count)
     return {"script": script}
 
@@ -866,7 +875,7 @@ async def generate_storyboard(state: AgentFilmState) -> dict[str, Any]:
                     for s in result.shots
                 ],
             }
-            shots_count = len(storyboard.get("shots", []))
+            shots_count = _safe_len(storyboard.get("shots"))
             logger.info("Storyboard generated via LLM: %d shots", shots_count)
             return {"storyboard": storyboard}
         except Exception as exc:
@@ -892,7 +901,7 @@ async def generate_storyboard(state: AgentFilmState) -> dict[str, Any]:
         ],
         "language": language,
     }
-    shots_count = len(storyboard.get("shots", []))
+    shots_count = _safe_len(storyboard.get("shots"))
     logger.info("Storyboard generated via heuristic: %d shots", shots_count)
     return {"storyboard": storyboard}
 
@@ -1110,7 +1119,7 @@ async def render_video(state: AgentFilmState) -> dict[str, Any]:
             language=state.get("language", "zh-CN"),
         )
         if result.success:
-            render_job = dict(state.get("render_job", {}))
+            render_job = dict(state.get("render_job") or {})
             render_job.update({
                 "video_url": result.data.get("video_url"),
                 "cover_url": result.data.get("cover_url"),

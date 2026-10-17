@@ -78,7 +78,7 @@ class RateLimiter:
 
     async def close(self) -> None:
         if self._redis:
-            await self._redis.close()  # type: ignore[attr-defined]
+            await self._redis.close()
             self._redis = None
 
 

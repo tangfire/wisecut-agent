@@ -29,7 +29,9 @@ class DemoLLM(BaseChatModel):
     model_name: str = "demo"
     temperature: float = 0.7
 
-    def _generate(self, prompts, **kwargs: Any) -> Any:
+    def _generate(  # type: ignore[override]
+        self, prompts: Any, stop: Any = None, run_manager: Any = None, **kwargs: Any
+    ) -> Any:
         # Demo: return a simple response
         from langchain_core.messages import AIMessage
         return AIMessage(content="[DEMO] This is a deterministic demo response.")
@@ -67,7 +69,7 @@ def create_llm(provider: str | None = None, **kwargs: Any) -> BaseChatModel:
             max_tokens=kwargs.get("max_tokens", settings.llm_max_tokens),
             api_key=kwargs.get("api_key", settings.llm_api_key or "sk-demo"),
             base_url=kwargs.get("base_url", settings.llm_base_url or "http://localhost:8000/v1"),
-        )
+        )  # type: ignore[call-arg]
 
     raise ValueError(f"Unknown LLM provider: {provider}. Must be 'demo' or 'openai-compatible'.")
 

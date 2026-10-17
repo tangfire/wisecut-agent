@@ -42,12 +42,12 @@ def _serialize_asset(a: Any) -> AssetResponse:
         size_bytes=a.size_bytes,
         s3_url=a.s3_url,
         content_type=a.content_type,
-        created_at=a.created_at.isoformat() if a.created_at else None,
+        created_at=a.created_at.isoformat() if a.created_at else "",
     )
 
 
 @router.get("/projects/{project_id}/assets", response_model=AssetListResponse, tags=["Assets"])
-def list_assets(request: Request, project_id: str, asset_type: str | None = None, offset: int = 0, limit: int = 50):
+def list_assets(request: Request, project_id: str, asset_type: str | None = None, offset: int = 0, limit: int = 50) -> AssetListResponse:
     """List assets in a project."""
     user_id = get_current_user_id(request)
     if not user_id:
@@ -67,7 +67,7 @@ def list_assets(request: Request, project_id: str, asset_type: str | None = None
 
 
 @router.post("/projects/{project_id}/assets", response_model=AssetResponse, status_code=status.HTTP_201_CREATED, tags=["Assets"])
-async def upload_asset(request: Request, project_id: str, file: UploadFile = File(...)):
+async def upload_asset(request: Request, project_id: str, file: UploadFile = File(...)) -> AssetResponse:
     """Upload an asset to a project."""
     user_id = get_current_user_id(request)
     if not user_id:

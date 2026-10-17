@@ -85,13 +85,13 @@ class MetricsCollector:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._http_latency = _Histogram()
-        self._http_requests = defaultdict(lambda: defaultdict(_Counter))
+        self._http_requests: dict[str, dict[str, _Counter]] = defaultdict(lambda: defaultdict(_Counter))
         self._llm_tokens = _Counter()
         self._llm_cost = _Histogram()
         self._tool_latency = _Histogram()
         self._tool_success = _Counter()
         self._tool_failure = _Counter()
-        self._run_phases = defaultdict(_Histogram)
+        self._run_phases: dict[str, _Histogram] = defaultdict(_Histogram)
         self._sse_connections = _Counter()
         self._sse_reconnects = _Counter()
         self._outbox_depth = 0
@@ -105,7 +105,7 @@ class MetricsCollector:
     ) -> None:
         """Record an HTTP request."""
         self._http_latency.observe(duration_ms)
-        self._http_requests[path][status_code].inc()
+        self._http_requests[path][str(status_code)].inc()
 
     # LLM metrics
 

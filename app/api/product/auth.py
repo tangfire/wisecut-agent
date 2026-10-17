@@ -63,7 +63,7 @@ class RefreshRequest(BaseModel):
 
 
 @router.post("/auth/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED, tags=["Auth"])
-def register(body: RegisterRequest):
+def register(body: RegisterRequest) -> UserResponse:
     """Register a new user account."""
     service = APIUserService()
     try:
@@ -83,7 +83,7 @@ def register(body: RegisterRequest):
 
 
 @router.post("/auth/login", response_model=TokenResponse, tags=["Auth"])
-def login(body: LoginRequest):
+def login(body: LoginRequest) -> TokenResponse:
     """Login with email and password. Returns JWT access + refresh tokens."""
     service = APIUserService()
     user = service.authenticate(body.email, body.password)
@@ -112,7 +112,7 @@ def login(body: LoginRequest):
 
 
 @router.post("/auth/refresh", response_model=TokenResponse, tags=["Auth"])
-def refresh(body: RefreshRequest):
+def refresh(body: RefreshRequest) -> TokenResponse:
     """Refresh access token using a valid refresh token."""
     payload = __import__("app.security.auth", fromlist=["decode_token"]).decode_token(body.refresh_token)
     if payload is None or payload.get("type") != "refresh":
@@ -146,7 +146,7 @@ def refresh(body: RefreshRequest):
 
 
 @router.get("/me", response_model=UserResponse, tags=["Auth"])
-def get_me(request: Request):
+def get_me(request: Request) -> UserResponse:
     """Get current user info from access token."""
     from app.persistence.models import UserAccount
     from app.persistence.sync_engine import get_sync_session_factory
@@ -169,8 +169,8 @@ def get_me(request: Request):
     )
 
 
-@router.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT, tags=["Auth"])
-def logout(request: Request, body: RefreshRequest | None = None):
+@router.post("/auth/logout", status_code=status.HTTP_200_OK, tags=["Auth"])
+def logout(request: Request, body: RefreshRequest | None = None) -> dict[str, str]:
     """Revoke refresh token (if provided) and logout."""
     from app.security.auth import decode_token, get_current_user_id
 
@@ -182,3 +182,4 @@ def logout(request: Request, body: RefreshRequest | None = None):
             if jti:
                 service = APIUserService()
                 service.revoke_refresh_token(jti)
+    return {"status": "logged_out"}

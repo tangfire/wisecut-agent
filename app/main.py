@@ -170,6 +170,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         request.state.maa_project_id = request.headers.get("X-Project-ID", "")
         request.state.maa_conversation_id = request.headers.get("X-Conversation-ID", "")
         request.state.maa_run_id = request.headers.get("X-Run-ID", "")
+
+        # WP-10: MAA service-to-service auth for MAA routes only
+        # Product API routes (/api/v1/*) use JWT auth, not service token
+        path = request.url.path
+        is_maa_route = not path.startswith("/api/v1") and path not in (
+            "/health", "/ready", "/version", "/metrics",
+        ) and not path.startswith("/docs") and not path.startswith("/redoc") and not path.startswith("/openapi")
+        if is_maa_route:
+            from fastapi.responses import JSONResponse
+
+            from app.security.maa_auth import verify_maa_service_auth
+
+            if not verify_maa_service_auth(request):
+                return JSONResponse(
+                    status_code=403,
+                    content={
+                        "method": request.method,
+                        "path": path,
+                        "status_code": 403,
+                        "body": "invalid service token",
+                    },
+                )
+
         RequestContext.set(
             trace_id=trace_id,
             request_id=request_id,

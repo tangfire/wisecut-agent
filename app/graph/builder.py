@@ -266,7 +266,7 @@ async def normalize_input(state: AgentFilmState) -> dict[str, Any]:
       - normalize_start_input from app.domain.agent_film
     """
     from app.graph.nodes.normalize import normalize_input as _normalize
-    return await _normalize(state)
+    return await _normalize(dict(state))
 
 
 async def collect_product_context(state: AgentFilmState) -> dict[str, Any]:

@@ -63,11 +63,12 @@ def upload_bytes(bucket: str, key: str, data: bytes, content_type: str | None = 
 def get_presigned_url(bucket: str, key: str, expires_in: int = 3600) -> str:
     """Generate a presigned URL for downloading an object."""
     client = get_storage_client()
-    return client.generate_presigned_url(
+    url: str = client.generate_presigned_url(
         "get_object",
         Params={"Bucket": bucket, "Key": key},
         ExpiresIn=expires_in,
     )
+    return url
 
 
 def delete_object(bucket: str, key: str) -> None:

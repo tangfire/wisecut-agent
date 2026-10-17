@@ -843,7 +843,7 @@ class ProjectRepository(BaseRepository):
         if description is not None:
             project.description = description
         if status is not None:
-            project.status = status
+            project.status = status  # type: ignore[assignment]
         await self._session.flush()
         return project
 

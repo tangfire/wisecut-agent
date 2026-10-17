@@ -52,13 +52,13 @@ def _serialize_project(p: Any) -> ProjectResponse:
         description=p.description,
         status=p.status.value if hasattr(p.status, "value") else str(p.status),
         created_by=p.created_by,
-        created_at=p.created_at.isoformat() if p.created_at else None,
-        updated_at=p.updated_at.isoformat() if p.updated_at else None,
+        created_at=p.created_at.isoformat() if p.created_at else "",
+        updated_at=p.updated_at.isoformat() if p.updated_at else "",
     )
 
 
 @router.get("/projects", response_model=ProjectListResponse, tags=["Projects"])
-def list_projects(request: Request, offset: int = 0, limit: int = 20):
+def list_projects(request: Request, offset: int = 0, limit: int = 20) -> ProjectListResponse:
     """List projects in the user's default workspace."""
     user_id = get_current_user_id(request)
     if not user_id:
@@ -76,7 +76,7 @@ def list_projects(request: Request, offset: int = 0, limit: int = 20):
 
 
 @router.post("/projects", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED, tags=["Projects"])
-def create_project(request: Request, body: CreateProjectRequest):
+def create_project(request: Request, body: CreateProjectRequest) -> ProjectResponse:
     """Create a new project in the user's default workspace."""
     user_id = get_current_user_id(request)
     if not user_id:
@@ -94,7 +94,7 @@ def create_project(request: Request, body: CreateProjectRequest):
 
 
 @router.get("/projects/{project_id}", response_model=ProjectResponse, tags=["Projects"])
-def get_project(request: Request, project_id: str):
+def get_project(request: Request, project_id: str) -> ProjectResponse:
     """Get project details."""
     user_id = get_current_user_id(request)
     if not user_id:
@@ -114,7 +114,7 @@ def get_project(request: Request, project_id: str):
 
 
 @router.patch("/projects/{project_id}", response_model=ProjectResponse, tags=["Projects"])
-def update_project(request: Request, project_id: str, body: UpdateProjectRequest):
+def update_project(request: Request, project_id: str, body: UpdateProjectRequest) -> ProjectResponse:
     """Update project name/description/status."""
     user_id = get_current_user_id(request)
     if not user_id:
@@ -140,8 +140,8 @@ def update_project(request: Request, project_id: str, body: UpdateProjectRequest
     return _serialize_project(updated)
 
 
-@router.delete("/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Projects"])
-def delete_project(request: Request, project_id: str):
+@router.delete("/projects/{project_id}", status_code=status.HTTP_200_OK, tags=["Projects"])
+def delete_project(request: Request, project_id: str) -> dict[str, str]:
     """Soft-delete a project."""
     user_id = get_current_user_id(request)
     if not user_id:
@@ -157,4 +157,4 @@ def delete_project(request: Request, project_id: str):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="forbidden")
 
     service.delete_project(project_id)
-    return None
+    return {"status": "deleted", "project_id": project_id}

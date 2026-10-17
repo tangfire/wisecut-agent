@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 
-from app.tools.contracts import SecurityLevel, ToolContract
+from app.tools.contracts import ApprovalRequirement, SecurityLevel, ToolContract
 
 logger = logging.getLogger(__name__)
 
@@ -178,7 +178,7 @@ def register_default_tools() -> None:
             input_schema={"type": "object"},
             output_schema={"type": "object"},
             security_level=SecurityLevel.L3,
-            approval_requirement=SecurityLevel.L3.value,
+            approval_requirement=ApprovalRequirement.REQUIRE,
             provider="video",
         ),
         ToolContract(
@@ -195,7 +195,7 @@ def register_default_tools() -> None:
             input_schema={"type": "object"},
             output_schema={"type": "object"},
             security_level=SecurityLevel.L3,
-            approval_requirement=SecurityLevel.L3.value,
+            approval_requirement=ApprovalRequirement.REQUIRE,
             provider="artifact",
         ),
     ]

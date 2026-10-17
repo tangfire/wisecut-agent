@@ -527,7 +527,7 @@ class APIProjectService:
                 session.add(ws)
                 session.commit()
                 session.refresh(ws)
-            return ws.id
+            return ws.id  # type: ignore[no-any-return]
 
     def create_project(self, workspace_id: str, name: str, description: str | None, created_by: str) -> Any:
         """Create a new project."""
@@ -721,7 +721,7 @@ class APIRunService:
             )
             session.add(proj)
             session.flush()
-        return proj.id
+        return proj.id  # type: ignore[no-any-return]
 
     def get_run(self, run_id: str) -> Any | None:
         """Get run by ID."""
@@ -824,7 +824,7 @@ class APIArtifactService:
                 )
                 .all()
             )
-            return artifacts
+            return artifacts  # type: ignore[no-any-return]
 
     def get_artifact(self, artifact_id: str) -> Any | None:
         """Get artifact by ID."""
@@ -865,7 +865,8 @@ class APIArtifactService:
             if artifact is None or not artifact.s3_key:
                 return None
             storage = get_storage_client()
-            return storage.get_presigned_url(bucket=settings.s3_bucket, key=artifact.s3_key)
+            url: str = storage.get_presigned_url(bucket=settings.s3_bucket, key=artifact.s3_key)
+            return url
 
 
 class APIProviderService:
@@ -886,7 +887,8 @@ class APIProviderService:
         """List provider settings for a user."""
 
         with _sync_session() as session:
-            return session.query(ProviderSetting).filter(ProviderSetting.user_id == user_id).all()
+            settings_list: list[Any] = session.query(ProviderSetting).filter(ProviderSetting.user_id == user_id).all()
+            return settings_list
 
     def set_config(self, user_id: str, provider_type: str, config: dict[str, Any], is_active: bool) -> Any:
         """Create or update a provider setting."""

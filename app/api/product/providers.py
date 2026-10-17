@@ -41,14 +41,14 @@ def _serialize_setting(s: Any) -> ProviderSettingResponse:
 
 
 @router.get("/providers", response_model=list[ProviderCapabilityResponse], tags=["Providers"])
-def list_provider_capabilities():
+def list_provider_capabilities() -> list[ProviderCapabilityResponse]:
     """List available provider types and their capabilities."""
     service = APIProviderService()
-    return service.list_capabilities()
+    return [ProviderCapabilityResponse(**c) for c in service.list_capabilities()]
 
 
 @router.get("/provider-settings", response_model=list[ProviderSettingResponse], tags=["Providers"])
-def list_my_provider_settings(request: Request):
+def list_my_provider_settings(request: Request) -> list[ProviderSettingResponse]:
     """List current user's provider settings."""
     user_id = get_current_user_id(request)
     if not user_id:
@@ -60,7 +60,7 @@ def list_my_provider_settings(request: Request):
 
 
 @router.put("/provider-settings", response_model=ProviderSettingResponse, tags=["Providers"])
-def set_provider_setting(request: Request, body: ProviderSettingRequest):
+def set_provider_setting(request: Request, body: ProviderSettingRequest) -> ProviderSettingResponse:
     """Create or update a provider setting."""
     user_id = get_current_user_id(request)
     if not user_id:

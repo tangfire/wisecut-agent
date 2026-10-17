@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Request
 
 from app.core.exceptions import ArtifactNotFound
@@ -12,7 +14,7 @@ router = APIRouter()
 
 
 @router.get("/conversations/{conversation_id}/artifacts/{artifact_id}", summary="Get artifact detail", tags=["Artifact"])
-async def get_artifact(request: Request, conversation_id: str, artifact_id: str):
+async def get_artifact(request: Request, conversation_id: str, artifact_id: str) -> dict[str, Any]:
     """Return the full artifact data including payload."""
     session = get_sync_session_factory()()
     try:

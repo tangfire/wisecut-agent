@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Request, status
@@ -16,7 +17,7 @@ from app.security.authz import verify_run_access
 router = APIRouter()
 
 
-def _extract_maa_context(request: Request) -> dict:
+def _extract_maa_context(request: Request) -> dict[str, str]:
     """Extract MAA protocol headers set by the Go Client."""
     return {
         "user_id": request.state.maa_user_id or "",
@@ -27,7 +28,7 @@ def _extract_maa_context(request: Request) -> dict:
 
 
 @router.get("/runs/{run_id}/events", summary="Stream run events (SSE)", tags=["Run"])
-async def stream_events(request: Request, run_id: str):
+async def stream_events(request: Request, run_id: str) -> EventSourceResponse:
     """Subscribe to run events via SSE with after_seq support."""
     after_seq = int(request.query_params.get("after_seq", "0"))
     live = request.query_params.get("live", "true").lower() == "true"
@@ -41,8 +42,8 @@ async def stream_events(request: Request, run_id: str):
         from app.persistence.models import Conversation, Run
         run = session.get(Run, run_id)
         if run is None:
-            async def error_generator():
-                yield encode_sse_event("error", {"error": f"run not found: {run_id}"}, "error-1")
+            async def error_generator() -> AsyncIterator[str]:
+                yield encode_sse_event("error-1", "error", {"error": f"run not found: {run_id}"})
             return EventSourceResponse(error_generator())
 
         conv = session.get(Conversation, run.conversation_id)
@@ -56,9 +57,10 @@ async def stream_events(request: Request, run_id: str):
     finally:
         session.close()
 
-    async def event_generator():
+    async def event_generator() -> AsyncIterator[str]:
         """Generate SSE events matching Go Client's expectations."""
         yield ": connected\n\n"
+
 
         event_service = APIEventService()
         for sse_event in event_service.get_events_for_sse(run_id, after_seq=after_seq):
@@ -82,7 +84,7 @@ async def stream_events(request: Request, run_id: str):
 
 
 @router.post("/runs/{run_id}/cancel", status_code=status.HTTP_200_OK, summary="Cancel a run", tags=["Run"])
-async def cancel_run(request: Request, run_id: str):
+async def cancel_run(request: Request, run_id: str) -> dict[str, str]:
     """Request cancellation of the given run."""
     _extract_maa_context(request)
     session = get_sync_session_factory()()

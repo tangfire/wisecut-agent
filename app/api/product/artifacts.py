@@ -36,12 +36,12 @@ def _serialize_artifact(a: Any) -> ArtifactResponse:
         artifact_type=a.artifact_type,
         uri=a.uri,
         status=a.status.value if hasattr(a.status, "value") else str(a.status),
-        created_at=a.created_at.isoformat() if a.created_at else None,
+        created_at=a.created_at.isoformat() if a.created_at else "",
     )
 
 
 @router.get("/projects/{project_id}/artifacts", response_model=ArtifactListResponse, tags=["Artifacts"])
-def list_project_artifacts(request: Request, project_id: str):
+def list_project_artifacts(request: Request, project_id: str) -> ArtifactListResponse:
     """List all artifacts for a project."""
     user_id = get_current_user_id(request)
     if not user_id:
@@ -56,7 +56,7 @@ def list_project_artifacts(request: Request, project_id: str):
 
 
 @router.get("/artifacts/{artifact_id}", response_model=ArtifactResponse, tags=["Artifacts"])
-def get_artifact(request: Request, artifact_id: str):
+def get_artifact(request: Request, artifact_id: str) -> ArtifactResponse:
     """Get artifact details."""
     user_id = get_current_user_id(request)
     if not user_id:
@@ -74,7 +74,7 @@ def get_artifact(request: Request, artifact_id: str):
 
 
 @router.get("/artifacts/{artifact_id}/download", tags=["Artifacts"])
-def download_artifact(request: Request, artifact_id: str):
+def download_artifact(request: Request, artifact_id: str) -> dict[str, str]:
     """Get a presigned download URL for the artifact."""
     user_id = get_current_user_id(request)
     if not user_id:
@@ -89,4 +89,4 @@ def download_artifact(request: Request, artifact_id: str):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="forbidden")
 
     url = service.get_download_url(artifact_id)
-    return {"download_url": url}
+    return {"download_url": url or ""}

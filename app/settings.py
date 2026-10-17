@@ -15,6 +15,7 @@ from __future__ import annotations
 import os
 import sys
 from enum import StrEnum
+from typing import Any
 
 from pydantic import Field, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -64,6 +65,14 @@ class Settings(BaseSettings):
     service_name: str = Field(default="wisecut-agent", description="Service name for logs/tracing.")
     version: str = Field(default="0.1.0", description="Service version.")
     port: int = Field(default=10728, description="HTTP API port.")
+
+    # ------------------------------------------------------------------
+    # MAA Service-to-Service Auth (WP-10)
+    # ------------------------------------------------------------------
+    maa_service_token: str = Field(
+        default="dev-maa-service-token",
+        description="Shared secret for MAA service-to-service authentication. Required in production.",
+    )
 
     # ------------------------------------------------------------------
     # Logging
@@ -268,7 +277,7 @@ class Settings(BaseSettings):
 
     @field_validator("database_url", "redis_url", "rabbitmq_url")
     @classmethod
-    def validate_no_plaintext_secrets_in_production(cls, value: str, info) -> str:
+    def validate_no_plaintext_secrets_in_production(cls, value: str, info: Any) -> str:
         """Warn if obvious placeholder secrets are used in non-demo environments."""
         if info.field_name == "database_url" and "wisecut" in value:
             env = info.data.get("app_env")

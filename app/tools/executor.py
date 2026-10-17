@@ -20,7 +20,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections.abc import Coroutine
+from collections.abc import Callable, Coroutine
 from typing import Any
 
 from app.persistence.unit_of_work import unit_of_work
@@ -31,7 +31,7 @@ from app.tools.registry import ToolRegistry, get_registry
 logger = logging.getLogger(__name__)
 
 # Type for the actual tool implementation function
-ToolFunc = Coroutine[Any, Any, dict[str, Any]]
+ToolFunc = Callable[..., Coroutine[Any, Any, dict[str, Any]]]
 
 
 class ToolExecutor:
