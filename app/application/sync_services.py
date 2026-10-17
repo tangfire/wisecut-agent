@@ -813,17 +813,17 @@ class APIArtifactService:
     def list_by_project(self, project_id: str, user_id: str) -> list[Any]:
         """List artifacts for a project."""
         with _sync_session() as session:
-            # Find all runs in conversations for this user
-            conv_ids = session.query(Conversation.id).filter(Conversation.user_id == user_id).all()
-            conv_ids = [c[0] for c in conv_ids]
-
-            run_ids = session.query(Run.id).filter(Run.conversation_id.in_(conv_ids)).all()
-            run_ids = [r[0] for r in run_ids]
-
-            artifacts = session.query(Artifact).filter(
-                Artifact.project_id == project_id,
-                Artifact.run_id.in_(run_ids) if run_ids else False,
-            ).all()
+            # Artifact -> Run -> Conversation -> project_id
+            artifacts = (
+                session.query(Artifact)
+                .join(Run, Artifact.run_id == Run.id)
+                .join(Conversation, Run.conversation_id == Conversation.id)
+                .filter(
+                    Conversation.project_id == project_id,
+                    Conversation.user_id == user_id,
+                )
+                .all()
+            )
             return artifacts
 
     def get_artifact(self, artifact_id: str) -> Any | None:
@@ -858,7 +858,6 @@ class APIArtifactService:
     def get_download_url(self, artifact_id: str) -> str | None:
         """Get presigned download URL for an artifact."""
         from app.infrastructure.storage import get_storage_client
-
         from app.settings import settings
 
         with _sync_session() as session:

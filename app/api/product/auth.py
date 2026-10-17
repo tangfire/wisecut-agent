@@ -6,9 +6,8 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from typing import Any
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr, Field
 
 from app.application.sync_services import APIUserService
@@ -147,7 +146,7 @@ def refresh(body: RefreshRequest):
 
 
 @router.get("/me", response_model=UserResponse, tags=["Auth"])
-def get_me(request: Any):
+def get_me(request: Request):
     """Get current user info from access token."""
     from app.persistence.models import UserAccount
     from app.persistence.sync_engine import get_sync_session_factory
@@ -171,7 +170,7 @@ def get_me(request: Any):
 
 
 @router.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT, tags=["Auth"])
-def logout(request: Any, body: RefreshRequest | None = None):
+def logout(request: Request, body: RefreshRequest | None = None):
     """Revoke refresh token (if provided) and logout."""
     from app.security.auth import decode_token, get_current_user_id
 

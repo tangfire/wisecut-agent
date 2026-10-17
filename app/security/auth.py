@@ -18,7 +18,6 @@ from typing import Any
 
 from fastapi import Request
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 
 from app.settings import settings
 
@@ -28,17 +27,31 @@ logger = logging.getLogger(__name__)
 # Password hashing
 # ---------------------------------------------------------------------------
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# bcrypt has a 72-byte limit
+BCRYPT_MAX_BYTES = 72
 
 
 def hash_password(password: str) -> str:
-    """Hash a plain-text password."""
-    return pwd_context.hash(password)
+    """Hash a plain-text password using bcrypt directly.
+
+    passlib 1.7.4 is incompatible with bcrypt >= 4.1, so we call bcrypt
+    directly instead of going through passlib's CryptContext.
+    """
+    import bcrypt as _bcrypt
+
+    password_bytes = password.encode("utf-8")[:BCRYPT_MAX_BYTES]
+    return _bcrypt.hashpw(password_bytes, _bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    """Verify a plain-text password against a hash."""
-    return pwd_context.verify(plain, hashed)
+    """Verify a plain-text password against a bcrypt hash."""
+    import bcrypt as _bcrypt
+
+    plain_bytes = plain.encode("utf-8")[:BCRYPT_MAX_BYTES]
+    try:
+        return _bcrypt.checkpw(plain_bytes, hashed.encode("utf-8"))
+    except (ValueError, TypeError):
+        return False
 
 
 # ---------------------------------------------------------------------------

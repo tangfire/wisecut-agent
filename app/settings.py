@@ -120,11 +120,24 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     s3_endpoint: str = Field(
         default="http://localhost:19000",
+        validation_alias="OBJECT_STORAGE_ENDPOINT",
         description="S3-compatible endpoint.",
     )
-    s3_access_key: str = Field(default="minioadmin", description="S3 access key.")
-    s3_secret_key: str = Field(default="minioadmin", description="S3 secret key.")
-    s3_bucket: str = Field(default="wisecut-agent", description="Default bucket name.")
+    s3_access_key: str = Field(
+        default="minioadmin",
+        validation_alias="OBJECT_STORAGE_ACCESS_KEY",
+        description="S3 access key.",
+    )
+    s3_secret_key: str = Field(
+        default="minioadmin",
+        validation_alias="OBJECT_STORAGE_SECRET_KEY",
+        description="S3 secret key.",
+    )
+    s3_bucket: str = Field(
+        default="wisecut-agent",
+        validation_alias="OBJECT_STORAGE_BUCKET",
+        description="Default bucket name.",
+    )
     s3_region: str = Field(default="us-east-1", description="S3 region.")
     s3_use_path_style: bool = Field(
         default=True, description="Use path-style S3 addressing (required for MinIO)."

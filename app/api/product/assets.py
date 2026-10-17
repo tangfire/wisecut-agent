@@ -90,10 +90,9 @@ async def upload_asset(request: Request, project_id: str, file: UploadFile = Fil
     asset_type = _guess_asset_type(content_type)
 
     # Upload to S3-compatible storage
-    from app.infrastructure.storage import get_storage_client
-    storage = get_storage_client()
+    from app.infrastructure.storage import upload_bytes
     s3_key = f"projects/{project_id}/assets/{__import__('uuid').uuid4().hex[:12]}-{file.filename}"
-    s3_url = storage.upload_bytes(
+    s3_url = upload_bytes(
         bucket=service.get_bucket(),
         key=s3_key,
         data=content,

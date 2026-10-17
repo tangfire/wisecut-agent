@@ -51,7 +51,7 @@ def list_project_artifacts(request: Request, project_id: str):
     if not service.verify_project_access(project_id, user_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="forbidden")
 
-    artifacts = service.list_by_project(project_id)
+    artifacts = service.list_by_project(project_id, user_id)
     return ArtifactListResponse(items=[_serialize_artifact(a) for a in artifacts], total=len(artifacts))
 
 

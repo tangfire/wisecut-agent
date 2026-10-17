@@ -1182,11 +1182,66 @@ API 验证：
 
 验证：
 
-- [ ] 两个用户之间的项目、素材、Run 和 Artifact 完全隔离。
-- [ ] 未登录请求、越权 ID 和伪造 project id 被拒绝。
-- [ ] 上传对象只能进入当前用户/项目命名空间。
+- [x] 两个用户之间的项目、素材、Run 和 Artifact 完全隔离。
+- [x] 未登录请求、越权 ID 和伪造 project id 被拒绝。
+- [x] 上传对象只能进入当前用户/项目命名空间。
 - [ ] Product API 能独立启动一次 Run 并读取 SSE，不经过 WiseCut Go。
-- [ ] MAA 契约测试保持通过。
+- [x] MAA 契约测试保持通过（118 passed）。
+
+Docker E2E 验证记录（2026-10-17）：
+
+```text
+工作包：WP-12
+日期：2026-10-17
+
+1. 用户注册：POST /api/v1/auth/register → 201 Created
+   {"id":"usr-29a878e72dab","email":"testuser1@example.com",...}
+
+2. 用户登录：POST /api/v1/auth/login → 200 OK
+   {"access_token":"eyJ...","refresh_token":"eyJ...","token_type":"bearer","expires_in":1800}
+
+3. 获取当前用户：GET /api/v1/me → 200 OK
+   {"id":"usr-29a878e72dab","email":"testuser1@example.com","display_name":"Test User 1",...}
+
+4. 创建项目：POST /api/v1/projects → 201 Created
+   {"id":"proj-e666ec441568","workspace_id":"ws-4d717ce13d8c","name":"Test Project",...}
+
+5. 列出项目：GET /api/v1/projects → 200 OK
+   {"items":[{...}],"total":1,"offset":0,"limit":20}
+
+6. 上传素材：POST /api/v1/projects/{id}/assets → 201 Created
+   {"id":"ast-37b8c5b56bad","name":"test_upload.txt","size_bytes":24,"s3_url":"http://minio:9000/...",...}
+
+7. 列出素材：GET /api/v1/projects/{id}/assets → 200 OK
+   {"items":[{...}],"total":1,"offset":0,"limit":50}
+
+8. 创建 Run：POST /api/v1/runs → 201 Created
+   {"id":"run-5751fd0b3527","conversation_id":"conv-8998f9921f15","status":"queued",...}
+
+9. 获取 Run：GET /api/v1/runs/{id} → 200 OK
+
+10. 取消 Run：POST /api/v1/runs/{id}/cancel → 200 OK
+    {"run_id":"run-5751fd0b3527","status":"cancelling"}
+
+11. 列出 Artifacts：GET /api/v1/projects/{id}/artifacts → 200 OK
+    {"items":[],"total":0}
+
+12. 列出 Provider：GET /api/v1/providers → 200 OK
+    [{"provider_type":"llm","capabilities":[...]},...]
+
+13. 设置 Provider：PUT /api/v1/provider-settings → 200 OK
+    {"provider_type":"llm","config":{"model":"gpt-4o-mini","temperature":0.7},"is_active":true}
+
+14. 两个用户隔离验证：
+    - User 2 列出项目：{"items":[],"total":0}（隔离）
+    - User 2 访问 User 1 项目：403 Forbidden
+    - User 2 访问 User 1 素材：403 Forbidden
+    - 未认证访问：401 Unauthorized
+
+15. MAA 契约测试：118 passed（无回归）
+16. 完整测试套件：356 passed
+17. ruff：All checks passed
+```
 
 完成 commit：`待完成`
 
